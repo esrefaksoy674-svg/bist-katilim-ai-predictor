@@ -7,28 +7,56 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 
+from app.services.time_validation import (
+    calculate_metrics,
+    chronological_split,
+)
+
 
 @dataclass
 class TrainedModel:
     model: Pipeline
     feature_names: list[str]
     sample_count: int
+    metrics: dict
+
+
+def _create_pipeline() -> Pipeline:
+    return Pipeline(
+        steps=[
+            (
+                "imputer",
+                SimpleImputer(strategy="median"),
+            ),
+            (
+                "classifier",
+                RandomForestClassifier(
+                    n_estimators=200,
+                    random_state=42,
+                    class_weight="balanced",
+                    n_jobs=-1,
+                ),
+            ),
+        ]
+    )
 
 
 def train_model(
     features: pd.DataFrame,
     targets: pd.Series,
+    validation_ratio: float = 0.2,
 ) -> TrainedModel:
     """
-    >%5 yükseliş sınıflandırma modeli eğitir.
+    Zaman sırasını koruyarak model eğitir.
 
-    targets:
-        1 -> sonraki sonuç > %5
-        0 -> değil
+    Eski dönem:
+        eğitim
 
-    Bu servis henüz modeli aktif hale getirmez.
-    Eğitim sonucu daha sonra SHADOW model olarak
-    değerlendirme katmanına gönderilecektir.
+    Daha sonraki dönem:
+        doğrulama
+
+    Böylece gelecekteki kayıtlar eğitim sırasında
+    kullanılmaz.
     """
 
     if features.empty:
@@ -51,41 +79,43 @@ def train_model(
             "Model eğitimi için en az iki sınıf gerekir."
         )
 
-    clean_features = features.copy()
-
-    feature_names = list(
-        clean_features.columns
-    )
-
-    pipeline = Pipeline(
-        steps=[
-            (
-                "imputer",
-                SimpleImputer(
-                    strategy="median"
-                ),
-            ),
-            (
-                "classifier",
-                RandomForestClassifier(
-                    n_estimators=200,
-                    random_state=42,
-                    class_weight="balanced",
-                    n_jobs=-1,
-                ),
-            ),
-        ]
-    )
-
-    pipeline.fit(
-        clean_features,
+    (
+        train_features,
+        validation_features,
+        train_targets,
+        validation_targets,
+    ) = chronological_split(
+        features,
         targets,
+        validation_ratio,
+    )
+
+    if train_targets.nunique() < 2:
+        raise ValueError(
+            "Eğitim bölümünde en az iki sınıf bulunmalıdır."
+        )
+
+    model = _create_pipeline()
+
+    model.fit(
+        train_features,
+        train_targets,
+    )
+
+    validation_predictions = model.predict(
+        validation_features
+    )
+
+    metrics = calculate_metrics(
+        validation_targets,
+        validation_predictions,
     )
 
     return TrainedModel(
-        model=pipeline,
-        feature_names=feature_names,
-        sample_count=len(clean_features),
+        model=model,
+        feature_names=list(features.columns),
+        sample_count=len(train_features),
+        metrics=metrics,
     )
 
 
@@ -94,7 +124,7 @@ def predict_probability(
     features: pd.DataFrame,
 ) -> list[float]:
     """
-    Her kayıt için >%5 yükseliş olasılığını döndürür.
+    >%5 yükseliş sınıfının olasılığını döndürür.
     """
 
     if features.empty:

@@ -1,62 +1,32 @@
-from __future__ import annotations
+from datetime import date
 
-import requests
-
-
-BIST_KATILIM_SOURCE_URL = (
-    "https://borsaistanbul.com/"
-    "datum/hisse_endeks_katilim_ds.csv"
-)
+from .universe_source import fetch_katilim_symbols
 
 
-def fetch_official_katilim_data() -> str:
+def fetch_katilim_universe() -> list[str]:
     """
-    Borsa İstanbul Katılım veri kaynağını indirir.
+    Güncel Katılım evrenini veri kaynağından alır.
 
-    Kaynak erişilemiyorsa hata verir.
-    Eksik veriyle evren oluşturulmasına izin verilmez.
+    Veri alınamazsa boş liste döndürmez.
+    Böylece eksik evrenle tarama yapılması engellenir.
     """
 
-    response = requests.get(
-        BIST_KATILIM_SOURCE_URL,
-        timeout=30,
-        headers={
-            "User-Agent": (
-                "BIST-Katilim-AI-Predictor/0.1"
-            )
-        },
-    )
+    symbols = fetch_katilim_symbols()
 
-    response.raise_for_status()
-
-    if not response.content:
+    if not symbols:
         raise RuntimeError(
-            "Borsa İstanbul Katılım kaynağı boş döndü."
+            "Katılım evreninden hisse bulunamadı."
         )
 
-    return response.content.decode(
-        "utf-8-sig",
-        errors="replace",
-    )
+    return sorted(set(symbols))
 
 
-def source_status() -> dict:
-    """
-    Kaynağın erişilebilirlik durumunu kontrol eder.
-    """
+def get_universe_metadata() -> dict:
+    symbols = fetch_katilim_universe()
 
-    try:
-        data = fetch_official_katilim_data()
-
-        return {
-            "available": True,
-            "source": BIST_KATILIM_SOURCE_URL,
-            "bytes": len(data.encode("utf-8")),
-        }
-
-    except Exception as exc:
-        return {
-            "available": False,
-            "source": BIST_KATILIM_SOURCE_URL,
-            "error": str(exc),
-        }
+    return {
+        "trading_date": date.today().isoformat(),
+        "count": len(symbols),
+        "symbols": symbols,
+        "source": "Borsa Istanbul Katilim",
+    }

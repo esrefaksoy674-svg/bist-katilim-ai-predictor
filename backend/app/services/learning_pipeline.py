@@ -17,14 +17,16 @@ def build_learning_event(
     signal_date: date,
     signal_close: float,
     technical_data,
+    technical_data_date: date | None = None,
     news_features: dict | None = None,
     sector_features: dict | None = None,
 ):
     """
-    >%5 yükseliş olayından öğrenme kaydı oluşturur.
+    Öğrenme olayını oluşturur.
 
-    Teknik özellikler yükseliş gününden değil,
-    önceki gerçek işlem gününden alınmalıdır.
+    Teknik verinin, sinyal gününden önceki gerçek işlem gününe
+    ait olması zorunludur. Böylece gelecek verisinin öğrenmeye
+    sızması engellenir.
     """
 
     reference = get_reference_day(
@@ -32,19 +34,30 @@ def build_learning_event(
         signal_date=signal_date,
     )
 
+    reference_date = reference["reference_date"]
+
+    if technical_data_date is None:
+        raise ValueError(
+            "Teknik verinin tarihi belirtilmelidir."
+        )
+
+    if technical_data_date != reference_date:
+        raise ValueError(
+            "Teknik veri, sinyal gününden önceki referans işlem "
+            "gününe ait olmalıdır."
+        )
+
     rise_percent = calculate_change_percent(
         previous_close=reference["close"],
         current_close=signal_close,
     )
 
-    features = calculate_features(
-        technical_data
-    )
+    features = calculate_features(technical_data)
 
     return create_learning_event(
         symbol=symbol,
         signal_date=signal_date,
-        reference_date=reference["reference_date"],
+        reference_date=reference_date,
         rise_percent=rise_percent,
         technical_features=features,
         news_features=news_features or {},
@@ -53,12 +66,6 @@ def build_learning_event(
 
 
 def process_learning_event(event) -> bool:
-    """
-    Öğrenme olayını ana belleğe alır.
-
-    Öğrenme kapalıysa mevcut ana bellek değiştirilmez.
-    """
-
     if event is None:
         return False
 
@@ -66,5 +73,4 @@ def process_learning_event(event) -> bool:
         return False
 
     learning_memory.add(event)
-
     return True

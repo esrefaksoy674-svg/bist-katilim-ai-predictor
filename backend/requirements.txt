@@ -6,6 +6,7 @@ pandas
 numpy
 scikit-learn
 ta
+yfinance
 requests
 httpx
 feedparser

@@ -21,6 +21,8 @@ def make_training_data():
                 70,
                 42,
                 58,
+                47,
+                63,
             ],
             "volume_ratio": [
                 0.8,
@@ -33,6 +35,8 @@ def make_training_data():
                 2.0,
                 1.0,
                 1.4,
+                1.1,
+                1.6,
             ],
             "momentum": [
                 -2,
@@ -45,6 +49,8 @@ def make_training_data():
                 5,
                 0.5,
                 2.5,
+                1.2,
+                3.5,
             ],
         }
     )
@@ -61,6 +67,8 @@ def make_training_data():
             1,
             0,
             1,
+            0,
+            1,
         ]
     )
 
@@ -73,14 +81,21 @@ def test_model_can_be_trained():
     trained = train_model(
         features,
         targets,
+        validation_ratio=0.25,
     )
 
-    assert trained.sample_count == 10
+    assert trained.sample_count == 9
+
     assert trained.feature_names == [
         "rsi",
         "volume_ratio",
         "momentum",
     ]
+
+    assert "accuracy" in trained.metrics
+    assert "precision" in trained.metrics
+    assert "recall" in trained.metrics
+    assert "sample_count" in trained.metrics
 
 
 def test_model_can_predict_probability():
@@ -89,6 +104,7 @@ def test_model_can_predict_probability():
     trained = train_model(
         features,
         targets,
+        validation_ratio=0.25,
     )
 
     probabilities = predict_probability(
@@ -116,12 +132,12 @@ def test_empty_training_data_is_rejected():
 def test_single_class_training_data_is_rejected():
     features = pd.DataFrame(
         {
-            "rsi": [40, 45, 50],
+            "rsi": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85],
         }
     )
 
     targets = pd.Series(
-        [1, 1, 1]
+        [1] * 10
     )
 
     with pytest.raises(ValueError):
@@ -137,6 +153,7 @@ def test_missing_prediction_feature_is_rejected():
     trained = train_model(
         features,
         targets,
+        validation_ratio=0.25,
     )
 
     incomplete = features[

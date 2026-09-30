@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+pandas
+numpy
+scikit-learn
+ta
+requests
+httpx
+feedparser
+python-dotenv
+supabase

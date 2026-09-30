@@ -1,16 +1,38 @@
+from __future__ import annotations
+
 from datetime import date, datetime, timezone
 
 import pandas as pd
 import yfinance as yf
 
 
-def fetch_daily_data(symbol: str, period: str = "2y") -> pd.DataFrame:
-    """
-    Bir BIST hissesinin günlük OHLCV verisini getirir.
+REQUIRED_COLUMNS = [
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Volume",
+]
 
-    yfinance sembolü BIST için .IS eklenerek oluşturulur.
+
+def fetch_daily_data(
+    symbol: str,
+    period: str = "2y",
+) -> pd.DataFrame:
     """
-    ticker = f"{symbol.upper()}.IS"
+    BIST hissesinin günlük OHLCV verisini getirir.
+
+    Canlı işlem veya emir göndermez.
+    """
+
+    symbol = symbol.upper().strip()
+
+    if not symbol:
+        raise ValueError(
+            "Hisse sembolü boş olamaz."
+        )
+
+    ticker = f"{symbol}.IS"
 
     data = yf.download(
         ticker,
@@ -26,56 +48,89 @@ def fetch_daily_data(symbol: str, period: str = "2y") -> pd.DataFrame:
             f"{symbol} için günlük piyasa verisi alınamadı."
         )
 
-    # yfinance bazı sürümlerde MultiIndex döndürebilir.
+    # Bazı yfinance sürümlerinde MultiIndex gelir.
     if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
+        data.columns = [
+            column[0]
+            for column in data.columns
+        ]
 
-    required = {"Open", "High", "Low", "Close", "Volume"}
-
-    missing = required.difference(data.columns)
+    missing = [
+        column
+        for column in REQUIRED_COLUMNS
+        if column not in data.columns
+    ]
 
     if missing:
         raise RuntimeError(
-            f"{symbol} verisinde eksik sütunlar: {sorted(missing)}"
+            f"{symbol} verisinde eksik sütunlar: "
+            f"{missing}"
         )
 
-    result = data[list(required)].copy()
+    result = data[
+        REQUIRED_COLUMNS
+    ].copy()
 
     result = result.dropna(
-        subset=["Open", "High", "Low", "Close"]
+        subset=[
+            "Open",
+            "High",
+            "Low",
+            "Close",
+        ]
     )
 
     if result.empty:
         raise RuntimeError(
-            f"{symbol} için kullanılabilir günlük veri kalmadı."
+            f"{symbol} için kullanılabilir veri kalmadı."
         )
 
-    result.index = pd.to_datetime(result.index)
+    result.index = pd.to_datetime(
+        result.index
+    )
 
-    return result.sort_index()
+    result = result[
+        ~result.index.duplicated(
+            keep="last"
+        )
+    ]
+
+    result = result.sort_index()
+
+    if len(result) < 2:
+        raise RuntimeError(
+            f"{symbol} için yeterli günlük veri yok."
+        )
+
+    return result
 
 
-def get_last_close(symbol: str) -> dict:
+def get_last_close(
+    symbol: str,
+) -> dict:
     """
     Son mevcut işlem gününün kapanış verisini döndürür.
-    Canlı veri kullanılmaz.
     """
-    data = fetch_daily_data(symbol, period="2y")
+
+    data = fetch_daily_data(
+        symbol,
+        period="2y",
+    )
 
     row = data.iloc[-1]
 
-    trading_date = data.index[-1].date()
-
     return {
         "symbol": symbol.upper(),
-        "trading_date": trading_date,
+        "trading_date": data.index[-1].date(),
         "open": float(row["Open"]),
         "high": float(row["High"]),
         "low": float(row["Low"]),
         "close": float(row["Close"]),
         "volume": float(row["Volume"]),
         "source": "yfinance",
-        "retrieved_at": datetime.now(timezone.utc),
+        "retrieved_at": datetime.now(
+            timezone.utc
+        ),
     }
 
 
@@ -84,33 +139,29 @@ def get_reference_day(
     signal_date: date,
 ) -> dict:
     """
-    Bir yükseliş olayının önceki işlem gününü bulur.
+    Yükseliş gününden önceki gerçek işlem gününü bulur.
 
-    Örneğin:
-        yükseliş günü = 2026-09-28
-        referans günü = 2026-09-25
-
-    Hafta sonu/tatil nedeniyle takvim günü değil,
-    gerçek önceki işlem günü kullanılır.
+    Takvim günü değil, veri içerisindeki önceki işlem günü
+    kullanılır.
     """
-    data = fetch_daily_data(symbol, period="2y")
 
-    dates = [index.date() for index in data.index]
+    data = fetch_daily_data(
+        symbol,
+        period="2y",
+    )
 
-    previous_dates = [
-        item for item in dates
-        if item < signal_date
+    eligible = data[
+        data.index.date < signal_date
     ]
 
-    if not previous_dates:
+    if eligible.empty:
         raise RuntimeError(
-            f"{symbol} için {signal_date} öncesinde işlem günü bulunamadı."
+            f"{symbol} için {signal_date} "
+            "öncesinde işlem günü bulunamadı."
         )
 
-    reference_date = previous_dates[-1]
-    row = data.loc[
-        data.index.date == reference_date
-    ].iloc[-1]
+    row = eligible.iloc[-1]
+    reference_date = eligible.index[-1].date()
 
     return {
         "symbol": symbol.upper(),
@@ -122,5 +173,7 @@ def get_reference_day(
         "close": float(row["Close"]),
         "volume": float(row["Volume"]),
         "source": "yfinance",
-        "retrieved_at": datetime.now(timezone.utc),
+        "retrieved_at": datetime.now(
+            timezone.utc
+        ),
     }

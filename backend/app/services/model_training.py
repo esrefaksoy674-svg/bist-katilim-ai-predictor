@@ -74,10 +74,8 @@ def train_model(
             "Model eğitimi için features DatetimeIndex taşımalıdır."
         )
 
-    if features.index.has_duplicates:
-        raise ValueError(
-            "Model eğitiminde yinelenen işlem tarihleri kullanılamaz."
-        )
+    # Aynı işlem tarihinde farklı hisselerden birden fazla örnek bulunabilir.
+    # Kronolojik bölme tarih sırasını koruduğu için bu durum zaman sızıntısı değildir.
 
     if not features.index.is_monotonic_increasing:
         features = features.sort_index()

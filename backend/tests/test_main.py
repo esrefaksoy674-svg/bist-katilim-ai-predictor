@@ -40,10 +40,7 @@ def test_health_self_test_reports_pipeline_failures_without_exposing_error(monke
         "app.main.fetch_katilim_universe",
         lambda: (_ for _ in ()).throw(RuntimeError("secret provider response")),
     )
-    monkeypatch.setattr(
-        "app.main.fetch_daily_data",
-        lambda *args, **kwargs: [{"close": 1}],
-    )
+    monkeypatch.setattr("app.main.fetch_daily_data", lambda *args, **kwargs: [{"close": 1}])
     monkeypatch.setattr(
         "app.main.get_prediction_repository",
         lambda: type("Repository", (), {"get_by_date": lambda self, value: []})(),
@@ -79,3 +76,15 @@ def test_health_self_test_passes_when_read_only_dependencies_are_available(monke
     assert body["status"] == "healthy"
     assert all(body["checks"].values())
     assert body["errors"] == {}
+
+
+def test_news_endpoint_returns_configured_ingestion_result(monkeypatch):
+    monkeypatch.setattr(
+        "app.main.collect_configured_news",
+        lambda symbols: {"item_count": 1, "items": [{"symbol": symbols[0]}]},
+    )
+
+    response = client.get("/news?symbol=thyao")
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["symbol"] == "THYAO"

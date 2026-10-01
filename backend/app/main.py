@@ -10,6 +10,7 @@ from app.core.health import (
     get_health_status,
 )
 from app.services.market_data import fetch_daily_data
+from app.services.news_ingestion import collect_configured_news
 from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.universe import fetch_katilim_universe
 
@@ -64,7 +65,6 @@ def health_self_test():
             if not checks[name]:
                 errors[name] = "Dependency returned no usable data."
         except Exception as exc:
-            # Exception text can include credentials or provider response details.
             errors[name] = {"type": type(exc).__name__}
 
     if not checks["runtime_configuration"]:
@@ -73,12 +73,20 @@ def health_self_test():
         errors["pipeline_imports"] = "One or more required pipeline packages are unavailable."
 
     status = "healthy" if all(checks.values()) else "degraded"
+    return {"status": status, "checks": checks, "errors": errors}
 
-    return {
-        "status": status,
-        "checks": checks,
-        "errors": errors,
-    }
+
+@app.get("/news")
+def news(symbol: str | None = None):
+    """Fetch configured RSS sources and return quality-checked news items."""
+    try:
+        symbols = [symbol.upper()] if symbol else []
+        return collect_configured_news(symbols)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Haber kaynakları kullanılamıyor: {type(exc).__name__}",
+        ) from exc
 
 
 @app.get("/universe")
@@ -102,7 +110,6 @@ def universe():
 def predictions(prediction_date: date | None = None):
     """Kalıcı tahmin kayıtlarını tarih bazında döndürür."""
     target_date = prediction_date or date.today()
-
     try:
         repository = get_prediction_repository()
         rows = repository.get_by_date(target_date)

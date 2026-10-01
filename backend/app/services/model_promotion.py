@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.services.learning_control import learning_control
 from app.services.model_evaluation import evaluate_candidate
 from app.services.model_registry import ModelRegistry, RegisteredModel
 
@@ -12,6 +13,9 @@ def promote_if_better(
     Shadow modeli yalnızca mevcut aktif modelden daha iyi doğrulanmışsa
     aktif eder. Aktif model yoksa yeterli örnekli aday ilk model olabilir.
     """
+
+    if not learning_control.can_learn():
+        return None
 
     candidate = registry.get(candidate_version)
     if candidate is None:

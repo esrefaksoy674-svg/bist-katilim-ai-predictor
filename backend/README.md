@@ -2,16 +2,20 @@
 
 BIST Katılım AI Predictor backend service.
 
-## News and KAP
+## End-of-day KAP and news collection
 
-The `/news` endpoint collects the three Google News RSS searches used by the earlier BIST Katılım AI Robot. It validates, deduplicates, and optionally filters headlines by ticker. Feed requests use bounded timeouts.
+The existing daily scan runs after the market close. It now queries the public KAP search page once per Katılım ticker, at a throttled pace, keeps only disclosures published on the scan date, and stores their headline metadata in Supabase. Per-ticker search results are cached for 15 minutes. The daily collection is capped at 100 symbols and 10 results per symbol.
 
-When called with one ticker, for example `/news?symbol=THYAO`, the backend also performs one low-volume search against KAP's public search page. It extracts disclosure titles, links, and displayed publication times. Results are cached per ticker for 15 minutes. The collector does not poll every company or download disclosure attachments.
+The `/news?symbol=THYAO` endpoint remains available for a single on-demand lookup. The scheduled daily scan is the whole-universe collection path; it does not continuously poll KAP.
 
-For KAP's supported high-volume and real-time integration, use the contracted KAP Data Dissemination REST API. The service requires a data distribution agreement and a provisioned API key. Do not use the public page for bulk polling.
+The three default Google News RSS searches come from the earlier BIST Katılım AI Robot. Override them with comma- or newline-separated `NEWS_RSS_URLS`.
 
-Override the default Google News sources with comma- or newline-separated `NEWS_RSS_URLS`. Optional settings:
+Before the first scheduled run with news persistence, apply [004_news_items.sql](sql/004_news_items.sql) to the Supabase project.
+
+For KAP's supported high-volume and real-time integration, use the contracted KAP Data Dissemination REST API. The official service requires a data distribution agreement and provisioned API key. The public-page collector is limited to this once-daily, throttled use.
+
+Optional settings:
 
 - `NEWS_FETCH_TIMEOUT_SECONDS` (default: `10`)
-- `KAP_RSS_URLS` (authorized distributor feed URLs; empty by default)
+- `KAP_RSS_URLS` (authorized distributor RSS feeds; empty by default)
 

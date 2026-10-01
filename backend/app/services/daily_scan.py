@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.services.daily_news import run_daily_news_collection
 from app.services.daily_prediction import run_daily_prediction
 from app.services.learning_runner import run_daily_learning
 from app.services.prediction_history import build_prediction_history
@@ -15,7 +16,7 @@ def run_daily_scan(
     learning_enabled: bool = True,
     top_n: int = 10,
 ):
-    """Gün sonu öğrenme ve tahmin akışını dışarıdan history istemeden çalıştırır."""
+    """Run end-of-day learning, prediction, and news collection."""
     symbols = fetch_katilim_universe()
     if not symbols:
         raise RuntimeError("Günlük tarama için Katılım evreni boş.")
@@ -43,9 +44,26 @@ def run_daily_scan(
         top_n=top_n,
     )
 
+    try:
+        news_result = run_daily_news_collection(
+            symbols=symbols,
+            trading_date=trading_date,
+        )
+    except Exception as exc:
+        # Keep an unavailable news store from cancelling the completed market scan.
+        news_result = {
+            "trading_date": trading_date.isoformat(),
+            "source_count": 0,
+            "reachable_sources": 0,
+            "item_count": 0,
+            "persisted_count": 0,
+            "error": type(exc).__name__,
+        }
+
     return {
         "trading_date": trading_date.isoformat(),
         "universe_count": len(symbols),
         "learning": learning_result,
         "predictions": prediction_result,
+        "news": news_result,
     }

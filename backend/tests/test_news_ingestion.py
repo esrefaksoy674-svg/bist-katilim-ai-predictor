@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from app.core.news_sources import get_enabled_sources
 from app.services import news, news_ingestion
@@ -91,23 +91,35 @@ def test_collect_configured_news_deduplicates_filters_and_hides_source_errors(mo
     assert "private token detail" not in str(result)
 
 
-def test_collect_configured_news_queries_kap_only_for_explicit_symbol(monkeypatch):
-    calls = []
+def test_collect_configured_news_queries_each_ticker_and_filters_eod(monkeypatch):
     monkeypatch.setattr(news_ingestion, "get_enabled_sources", lambda: {})
-    monkeypatch.setattr(
-        news_ingestion,
-        "fetch_kap_public_search",
-        lambda symbol: calls.append(symbol) or [{
-            "title": "KAP bildirimi",
-            "url": "https://www.kap.org.tr/tr/Bildirim/123",
+    requested = []
+
+    def fake_kap(symbol):
+        requested.append(symbol)
+        return [{
+            "title": f"{symbol} bildirimi",
+            "url": f"https://www.kap.org.tr/tr/Bildirim/{symbol}",
             "source": "kap.org.tr",
-            "published_at": datetime(2026, 10, 1, tzinfo=timezone.utc),
-            "content_hash": "kap-123",
+            "published_at": datetime(2026, 10, 1, 12, tzinfo=timezone.utc),
+            "content_hash": symbol,
             "symbol": symbol,
-        }],
+        }, {
+            "title": f"{symbol} eski bildirim",
+            "url": f"https://www.kap.org.tr/tr/Bildirim/old-{symbol}",
+            "source": "kap.org.tr",
+            "published_at": datetime(2026, 9, 30, 12, tzinfo=timezone.utc),
+            "content_hash": f"old-{symbol}",
+            "symbol": symbol,
+        }]
+
+    monkeypatch.setattr(news_ingestion, "fetch_kap_public_search", fake_kap)
+    result = news_ingestion.collect_configured_news(
+        ["THYAO", "TUPRS"],
+        published_on=date(2026, 10, 1),
     )
 
-    result = news_ingestion.collect_configured_news(["THYAO", "TUPRS"])
-
-    assert calls == ["THYAO"]
-    assert result["items"][0]["symbol"] == "THYAO"
+    assert requested == ["THYAO", "TUPRS"]
+    assert result["item_count"] == 2
+    assert {item["symbol"] for item in result["items"]} == {"THYAO", "TUPRS"}
+    assert all(item["content_hash"] in requested for item in result["items"])

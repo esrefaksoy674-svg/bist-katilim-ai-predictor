@@ -7,14 +7,15 @@ import time
 from datetime import datetime, timezone
 from html import unescape
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import requests
-from zoneinfo import ZoneInfo
 
 
 KAP_SEARCH_URL = "https://www.kap.org.tr/tr/search/{symbol}/1"
 REQUEST_TIMEOUT_SECONDS = 10
 CACHE_TTL_SECONDS = 900
+MIN_REQUEST_INTERVAL_SECONDS = 1.0
 MAX_RESULTS = 10
 SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{2,10}$")
 DISCLOSURE_LINK = re.compile(r'href=["\']([^"\']*/tr/Bildirim/([0-9]+)[^"\']*)["\']', re.IGNORECASE)
@@ -22,14 +23,18 @@ PUBLISHED_DATE = re.compile(r"\b(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)\b")
 
 _cache: dict[str, tuple[float, list[dict]]] = {}
 _cache_lock = threading.Lock()
+_last_request_at = 0.0
 
 
 def fetch_kap_public_search(symbol: str) -> list[dict]:
-    """Fetch one bounded public KAP search page for a single ticker.
+    """Fetch one bounded public KAP search page for a ticker, with caching.
 
-    This is a low-volume on-demand fallback for public search metadata, not the
-    contracted KAP Data Dissemination REST API. Bulk polling must use that API.
+    Use once per ticker in the end-of-day scan. This public-page reader is not
+    the contracted KAP Data Dissemination REST API and must not be used for
+    intraday or high-volume polling.
     """
+    global _last_request_at
+
     normalized = str(symbol).strip().upper()
     if not SYMBOL_PATTERN.fullmatch(normalized):
         raise ValueError("A valid ticker symbol is required.")
@@ -40,6 +45,11 @@ def fetch_kap_public_search(symbol: str) -> list[dict]:
         if cached and cached[0] > now:
             return [dict(item) for item in cached[1]]
 
+        wait_seconds = MIN_REQUEST_INTERVAL_SECONDS - (now - _last_request_at)
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+
+        _last_request_at = time.monotonic()
         url = KAP_SEARCH_URL.format(symbol=quote(normalized, safe=""))
         response = requests.get(
             url,
@@ -52,9 +62,10 @@ def fetch_kap_public_search(symbol: str) -> list[dict]:
         response.raise_for_status()
         items = _parse_search_page(response.text, normalized)
 
+        expires_at = time.monotonic() + CACHE_TTL_SECONDS
         if len(_cache) >= 128:
             _cache.clear()
-        _cache[normalized] = (now + CACHE_TTL_SECONDS, items)
+        _cache[normalized] = (expires_at, items)
         return [dict(item) for item in items]
 
 

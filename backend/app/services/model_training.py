@@ -49,14 +49,9 @@ def train_model(
     """
     Zaman sırasını koruyarak model eğitir.
 
-    Eski dönem:
-        eğitim
-
-    Daha sonraki dönem:
-        doğrulama
-
-    Böylece gelecekteki kayıtlar eğitim sırasında
-    kullanılmaz.
+    Üretim eğitiminde features DatetimeIndex taşımalıdır.
+    Böylece eğitim/doğrulama bölümü gerçek işlem tarihi üzerinden
+    kronolojik olarak ayrılır.
     """
 
     if features.empty:
@@ -74,9 +69,32 @@ def train_model(
             "Özellik ve hedef satır sayıları eşit olmalıdır."
         )
 
+    if not isinstance(features.index, pd.DatetimeIndex):
+        raise ValueError(
+            "Model eğitimi için features DatetimeIndex taşımalıdır."
+        )
+
+    if features.index.has_duplicates:
+        raise ValueError(
+            "Model eğitiminde yinelenen işlem tarihleri kullanılamaz."
+        )
+
+    if not features.index.is_monotonic_increasing:
+        features = features.sort_index()
+        targets = targets.iloc[
+            features.index.argsort()
+        ].copy()
+
     if targets.nunique() < 2:
         raise ValueError(
             "Model eğitimi için en az iki sınıf gerekir."
+        )
+
+    unique_targets = set(targets.dropna().unique().tolist())
+
+    if not unique_targets.issubset({0, 1}):
+        raise ValueError(
+            "Hedef değişken yalnızca 0 ve 1 sınıflarını içermelidir."
         )
 
     (
@@ -93,6 +111,11 @@ def train_model(
     if train_targets.nunique() < 2:
         raise ValueError(
             "Eğitim bölümünde en az iki sınıf bulunmalıdır."
+        )
+
+    if validation_targets.nunique() < 2:
+        raise ValueError(
+            "Doğrulama bölümünde en az iki sınıf bulunmalıdır."
         )
 
     model = _create_pipeline()

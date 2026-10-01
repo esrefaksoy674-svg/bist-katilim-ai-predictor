@@ -12,3 +12,4 @@ httpx
 feedparser
 python-dotenv
 supabase
+joblib

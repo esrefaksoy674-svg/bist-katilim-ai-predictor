@@ -15,7 +15,7 @@ def build_candidate_features(
     symbols: list[str],
     prediction_date: date,
 ) -> pd.DataFrame:
-    """Her sembol için yalnızca prediction_date'e kadar bilinen teknik özellikleri üretir."""
+    """Prediction gününe kadar bilinen veriden aday teknik özellikleri üretir."""
     rows = []
 
     for symbol in sorted(set(symbols)):
@@ -29,12 +29,20 @@ def build_candidate_features(
         if any(features.get(name) is None for name in FEATURE_NAMES):
             continue
 
+        future_rows = data[data.index.date > prediction_date]
+        target_date = (
+            future_rows.index[0].date()
+            if not future_rows.empty
+            else prediction_date
+        )
+
         row = dict(features)
         row["symbol"] = symbol.upper()
+        row["target_date"] = target_date
         rows.append(row)
 
     if not rows:
-        return pd.DataFrame(columns=FEATURE_NAMES + ["symbol"])
+        return pd.DataFrame(columns=FEATURE_NAMES + ["symbol", "target_date"])
 
     return pd.DataFrame(rows)
 
@@ -48,7 +56,7 @@ def run_prediction_scan(
     prediction_repository: PredictionRepository | None = None,
     top_n: int = 10,
 ) -> list[Prediction]:
-    """Aktif modelle adayları tarar ve seçilen sonuçları kalıcılaştırır."""
+    """Aktif modelle adayları tarar ve sonuçları isteğe bağlı kalıcılaştırır."""
     candidates = build_candidate_features(symbols, prediction_date)
 
     results = build_predictions(
@@ -60,26 +68,33 @@ def run_prediction_scan(
         top_n=top_n,
     )
 
-    predictions = []
+    target_dates = (
+        candidates.set_index("symbol")["target_date"].to_dict()
+        if not candidates.empty
+        else {}
+    )
     now = datetime.now(timezone.utc)
+    predictions = []
 
     for result in results:
-        predictions.append(
-            Prediction(
-                symbol=result.symbol,
-                prediction_date=result.prediction_date,
-                target_date=result.prediction_date,
-                probability_above_5=result.probability_above_5,
-                expected_change_percent=result.expected_change_percent,
-                model_confidence=result.model_confidence,
-                pattern_count=result.pattern_count,
-                explanation=result.explanation,
-                model_version=result.model_version,
-                created_at=now,
-            )
+        prediction = Prediction(
+            symbol=result.symbol,
+            prediction_date=result.prediction_date,
+            target_date=target_dates.get(
+                result.symbol,
+                result.prediction_date,
+            ),
+            probability_above_5=result.probability_above_5,
+            expected_change_percent=result.expected_change_percent,
+            model_confidence=result.model_confidence,
+            pattern_count=result.pattern_count,
+            explanation=result.explanation,
+            model_version=result.model_version,
+            created_at=now,
         )
+        predictions.append(prediction)
 
         if prediction_repository is not None:
-            prediction_repository.add(predictions[-1])
+            prediction_repository.add(prediction)
 
     return predictions

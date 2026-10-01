@@ -13,13 +13,18 @@ def test_scheduled_training_uses_istanbul_date():
             ).astimezone(tz)
 
     fake_result = object()
+    registry = type(
+        "Registry",
+        (),
+        {"active": lambda self: None},
+    )()
 
     with patch(
         "app.services.scheduled_training.datetime",
         FixedDateTime,
     ), patch(
         "app.services.scheduled_training.ModelRegistry",
-        return_value="REGISTRY",
+        return_value=registry,
     ), patch(
         "app.services.scheduled_training.restore_models",
     ) as restore, patch(
@@ -38,9 +43,9 @@ def test_scheduled_training_uses_istanbul_date():
     assert result["timezone"] == "Europe/Istanbul"
     assert result["status"] == "ok"
     assert result["result"] is fake_result
-    assert result["active_model"] == "REGISTRY"
+    assert result["active_model"] is None
     restore.assert_called_once_with(
-        "REGISTRY",
+        registry,
         "VERSIONS",
         "ARTIFACTS",
     )

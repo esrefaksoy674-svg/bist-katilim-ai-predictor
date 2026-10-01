@@ -8,6 +8,7 @@ from app.services.learning_event import (
     create_learning_event,
 )
 from app.services.learning_memory import learning_memory
+from app.services.learning_memory_repository import LearningEventRepository
 from app.services.market_data import get_reference_day
 from app.services.technical import calculate_features
 
@@ -65,12 +66,25 @@ def build_learning_event(
     )
 
 
-def process_learning_event(event) -> bool:
+def process_learning_event(
+    event,
+    repository: LearningEventRepository | None = None,
+) -> bool:
+    """
+    Öğrenme olayını kalıcı repository'ye ve çalışma belleğine işler.
+
+    Repository verilmezse geriye dönük uyumluluk için yalnızca
+    mevcut in-memory hafıza kullanılır.
+    """
+
     if event is None:
         return False
 
     if not learning_control.can_learn():
         return False
+
+    if repository is not None:
+        repository.add(event)
 
     learning_memory.add(event)
     return True

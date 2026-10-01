@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.core.config import settings
 from app.core.news_sources import get_enabled_sources
+from app.services.kap_public import fetch_kap_public_search
 from app.services.news import fetch_rss, match_news_to_symbols
 from app.services.news_quality import validate_news_batch
 
@@ -10,7 +11,7 @@ MAX_FEEDS_PER_SOURCE = 10
 
 
 def collect_configured_news(symbols: list[str]) -> dict:
-    """Collect, validate, deduplicate, and optionally match configured RSS items."""
+    """Collect, validate, deduplicate, and optionally match configured feeds."""
     sources = get_enabled_sources()
     raw_items: list[dict] = []
     source_results = []
@@ -35,17 +36,31 @@ def collect_configured_news(symbols: list[str]) -> dict:
                 if validation["invalid"]:
                     result["invalid_items"] = validation["invalid"]
             except Exception as exc:
-                # Avoid returning provider response bodies or credential-bearing URLs.
                 result["error"] = type(exc).__name__
             source_results.append(result)
 
-    unique_items = {}
-    for item in raw_items:
-        unique_items.setdefault(item["content_hash"], item)
-
-    items = list(unique_items.values())
+    matched_items = match_news_to_symbols(raw_items, symbols) if symbols else []
+    kap_items = []
     if symbols:
-        items = match_news_to_symbols(items, symbols)
+        symbol = str(symbols[0]).strip().upper()
+        result = {
+            "source": "kap_public",
+            "reachable": False,
+            "items": 0,
+            "error": None,
+        }
+        try:
+            kap_items = fetch_kap_public_search(symbol)
+            result["reachable"] = True
+            result["items"] = len(kap_items)
+        except Exception as exc:
+            result["error"] = type(exc).__name__
+        source_results.append(result)
+
+    unique_items = {}
+    for item in [*matched_items, *kap_items]:
+        unique_items.setdefault(item["content_hash"], item)
+    items = list(unique_items.values())
 
     return {
         "source_count": len(source_results),

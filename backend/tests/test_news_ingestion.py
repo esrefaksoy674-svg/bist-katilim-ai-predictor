@@ -73,6 +73,7 @@ def test_collect_configured_news_deduplicates_filters_and_hides_source_errors(mo
         "published_at": datetime(2026, 10, 1, tzinfo=timezone.utc),
         "content_hash": "same",
     }
+    monkeypatch.setattr(news_ingestion, "fetch_kap_public_search", lambda symbol: [])
 
     def fake_fetch(url, timeout):
         if "secret" in url:
@@ -82,9 +83,31 @@ def test_collect_configured_news_deduplicates_filters_and_hides_source_errors(mo
     monkeypatch.setattr(news_ingestion, "fetch_rss", fake_fetch)
     result = news_ingestion.collect_configured_news(["THYAO"])
 
-    assert result["source_count"] == 2
-    assert result["reachable_sources"] == 1
+    assert result["source_count"] == 3
+    assert result["reachable_sources"] == 2
     assert result["item_count"] == 1
     assert result["items"][0]["symbol"] == "THYAO"
     assert result["sources"][1]["error"] == "RuntimeError"
     assert "private token detail" not in str(result)
+
+
+def test_collect_configured_news_queries_kap_only_for_explicit_symbol(monkeypatch):
+    calls = []
+    monkeypatch.setattr(news_ingestion, "get_enabled_sources", lambda: {})
+    monkeypatch.setattr(
+        news_ingestion,
+        "fetch_kap_public_search",
+        lambda symbol: calls.append(symbol) or [{
+            "title": "KAP bildirimi",
+            "url": "https://www.kap.org.tr/tr/Bildirim/123",
+            "source": "kap.org.tr",
+            "published_at": datetime(2026, 10, 1, tzinfo=timezone.utc),
+            "content_hash": "kap-123",
+            "symbol": symbol,
+        }],
+    )
+
+    result = news_ingestion.collect_configured_news(["THYAO", "TUPRS"])
+
+    assert calls == ["THYAO"]
+    assert result["items"][0]["symbol"] == "THYAO"

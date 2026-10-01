@@ -1,5 +1,7 @@
 from datetime import date, datetime, timezone
 
+import pytest
+
 import pandas as pd
 
 from app.models.prediction import Prediction
@@ -53,5 +55,5 @@ def test_prediction_evaluation_uses_next_trading_day(monkeypatch):
     )
 
     assert count == 1
-    assert repo.prediction.actual_change_percent == 7.0
+    assert repo.prediction.actual_change_percent == pytest.approx(7.0)
     assert repo.prediction.successful is True

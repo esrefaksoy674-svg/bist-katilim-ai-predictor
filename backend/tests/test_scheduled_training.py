@@ -21,6 +21,14 @@ def test_scheduled_training_uses_istanbul_date():
         "app.services.scheduled_training.ModelRegistry",
         return_value="REGISTRY",
     ), patch(
+        "app.services.scheduled_training.restore_models",
+    ) as restore, patch(
+        "app.services.scheduled_training.get_model_version_repository",
+        return_value="VERSIONS",
+    ), patch(
+        "app.services.scheduled_training.get_model_artifact_repository",
+        return_value="ARTIFACTS",
+    ), patch(
         "app.services.scheduled_training.train_and_persist_market_model",
         return_value=fake_result,
     ) as train:
@@ -30,5 +38,11 @@ def test_scheduled_training_uses_istanbul_date():
     assert result["timezone"] == "Europe/Istanbul"
     assert result["status"] == "ok"
     assert result["result"] is fake_result
+    assert result["active_model"] == "REGISTRY"
+    restore.assert_called_once_with(
+        "REGISTRY",
+        "VERSIONS",
+        "ARTIFACTS",
+    )
     train.assert_called_once()
     assert train.call_args.kwargs["cutoff_date"] == date(2026, 10, 2)

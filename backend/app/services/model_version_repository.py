@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.services.model_registry import ModelRegistry, RegisteredModel
@@ -36,7 +36,7 @@ class SupabaseModelVersionRepository(ModelVersionRepository):
             "created_at": (
                 model.created_at.isoformat()
                 if model.created_at is not None
-                else datetime.utcnow().isoformat()
+                else datetime.now(timezone.utc).isoformat()
             ),
             "activated_at": (
                 model.activated_at.isoformat()

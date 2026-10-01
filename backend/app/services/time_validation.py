@@ -10,11 +10,12 @@ def chronological_split(
     validation_ratio: float = 0.2,
 ):
     """
-    Veriyi zaman sırasını bozmadan eğitim ve doğrulama
+    Veriyi kronolojik sırayı koruyarak eğitim ve doğrulama
     bölümlerine ayırır.
 
-    Verinin zaten tarih sırasına göre sıralı olması gerekir.
-    Gelecekteki kayıtlar eğitim bölümüne taşınmaz.
+    DatetimeIndex varsa veriler tarih sırasına göre güvenli biçimde
+    sıralanır. Böylece çağıran kodun yanlış sırada veri vermesi
+    geleceğin eğitim bölümüne sızmasına neden olmaz.
     """
 
     if len(features) != len(targets):
@@ -32,30 +33,32 @@ def chronological_split(
             "validation_ratio 0 ile 1 arasında olmalıdır."
         )
 
+    working_features = features.copy()
+    working_targets = targets.copy()
+
+    if isinstance(working_features.index, pd.DatetimeIndex):
+        if working_features.index.has_duplicates:
+            raise ValueError(
+                "Zaman bazlı doğrulamada yinelenen tarih indeksleri kullanılamaz."
+            )
+
+        order = working_features.index.argsort()
+        working_features = working_features.iloc[order].copy()
+        working_targets = working_targets.iloc[order].copy()
+
     split_index = int(
-        len(features) * (1 - validation_ratio)
+        len(working_features) * (1 - validation_ratio)
     )
 
-    if split_index <= 0 or split_index >= len(features):
+    if split_index <= 0 or split_index >= len(working_features):
         raise ValueError(
             "Geçerli bir eğitim/doğrulama bölümü oluşturulamadı."
         )
 
-    train_features = features.iloc[
-        :split_index
-    ].copy()
-
-    validation_features = features.iloc[
-        split_index:
-    ].copy()
-
-    train_targets = targets.iloc[
-        :split_index
-    ].copy()
-
-    validation_targets = targets.iloc[
-        split_index:
-    ].copy()
+    train_features = working_features.iloc[:split_index].copy()
+    validation_features = working_features.iloc[split_index:].copy()
+    train_targets = working_targets.iloc[:split_index].copy()
+    validation_targets = working_targets.iloc[split_index:].copy()
 
     return (
         train_features,
@@ -75,10 +78,7 @@ def calculate_metrics(
 
     return {
         "accuracy": float(
-            accuracy_score(
-                actual,
-                predicted,
-            )
+            accuracy_score(actual, predicted)
         ),
         "precision": float(
             precision_score(

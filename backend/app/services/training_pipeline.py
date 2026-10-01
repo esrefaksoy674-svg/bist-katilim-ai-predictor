@@ -20,7 +20,7 @@ class TrainingRunResult:
 
     @property
     def active_model(self) -> RegisteredModel | None:
-        return promoted_model
+        return self.promoted_model
 
 
 def train_shadow_model(
@@ -51,10 +51,12 @@ def train_shadow_model(
         trained,
     )
     registered.artifact = trained
+
     if artifact_repository is not None:
         artifact_repository.save(version, trained)
 
     promoted = None
+
     if promote and learning_control.can_learn():
         promoted = promote_if_better(
             registry,

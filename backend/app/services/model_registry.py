@@ -15,6 +15,7 @@ class RegisteredModel:
     pattern_count: int = 0
     created_at: datetime | None = None
     activated_at: datetime | None = None
+    artifact: object | None = None
 
 
 class ModelRegistry:
@@ -32,6 +33,7 @@ class ModelRegistry:
         recall: float | None = None,
         sample_count: int = 0,
         pattern_count: int = 0,
+        artifact: object | None = None,
     ) -> RegisteredModel:
         if version in self._models:
             raise ValueError(f"Model sürümü zaten kayıtlı: {version}")
@@ -45,6 +47,7 @@ class ModelRegistry:
             sample_count=sample_count,
             pattern_count=pattern_count,
             created_at=datetime.now(timezone.utc),
+            artifact=artifact,
         )
         self._models[version] = model
         return model

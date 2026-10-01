@@ -2,6 +2,36 @@ from app.services.model_promotion import promote_if_better
 from app.services.model_registry import ModelRegistry
 
 
+def test_disabled_learning_blocks_model_promotion():
+    from app.services.learning_control import learning_control
+
+    registry = ModelRegistry()
+    registry.register_shadow(
+        version="v1",
+        accuracy=0.80,
+        precision=0.80,
+        recall=0.80,
+        sample_count=100,
+    )
+    registry.activate("v1")
+    registry.register_shadow(
+        version="v2",
+        accuracy=0.90,
+        precision=0.90,
+        recall=0.90,
+        sample_count=100,
+    )
+
+    learning_control.disable()
+    try:
+        result = promote_if_better(registry, "v2")
+    finally:
+        learning_control.enable()
+
+    assert result is None
+    assert registry.active().version == "v1"
+
+
 def test_better_shadow_model_is_promoted():
     registry = ModelRegistry()
 

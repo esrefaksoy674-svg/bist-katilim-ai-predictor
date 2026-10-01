@@ -79,13 +79,30 @@ def _similar_examples(
 
     base = history[FEATURE_NAMES].apply(pd.to_numeric, errors="coerce")
     row = pd.to_numeric(candidate[FEATURE_NAMES], errors="coerce")
-    medians = base.median().replace(0, 1.0)
     scale = base.std().replace(0, 1.0).fillna(1.0)
 
     distances = ((base - row) / scale).pow(2).sum(axis=1).pow(0.5)
     result = history.copy()
     result["_distance"] = distances
     return result.sort_values("_distance").head(limit)
+
+
+def _history_before_prediction(
+    history: pd.DataFrame,
+    prediction_date: date,
+) -> pd.DataFrame:
+    if history is None or history.empty:
+        return pd.DataFrame()
+
+    if "reference_date" not in history.columns:
+        return history
+
+    reference_dates = pd.to_datetime(
+        history["reference_date"],
+        errors="coerce",
+    )
+    cutoff = pd.Timestamp(prediction_date)
+    return history.loc[reference_dates < cutoff].copy()
 
 
 def build_predictions(
@@ -103,6 +120,10 @@ def build_predictions(
     türetilen istatistiksel beklentidir.
     model_confidence doğrulama başarımından ayrı bir olasılık değildir; burada
     doğrulama accuracy değeri ayrı bir kalite göstergesi olarak taşınır.
+
+    Benzerlik istatistikleri yalnızca prediction_date öncesindeki
+    referans günlerinden oluşturulur; böylece geriye dönük testte gelecek
+    bilgilerinin sızması engellenir.
     """
     if candidates is None or candidates.empty:
         return []
@@ -121,11 +142,15 @@ def build_predictions(
     validation_accuracy = float(
         trained_model.metrics.get("accuracy", 0.0)
     )
+    prior_history = _history_before_prediction(
+        history,
+        prediction_date,
+    )
     rows: list[PredictionCandidate] = []
 
     for position, (_, candidate) in enumerate(candidates.iterrows()):
         probability = float(probabilities[position])
-        similar = _similar_examples(candidate, history)
+        similar = _similar_examples(candidate, prior_history)
 
         if similar.empty:
             expected_change = 0.0

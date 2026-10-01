@@ -30,6 +30,7 @@ def train_shadow_model(
     registry: ModelRegistry,
     validation_ratio: float = 0.2,
     promote: bool = True,
+    artifact_repository=None,
 ) -> TrainingRunResult:
     """
     Modeli eğitir ve önce SHADOW olarak kaydeder.
@@ -50,6 +51,8 @@ def train_shadow_model(
         trained,
     )
     registered.artifact = trained
+    if artifact_repository is not None:
+        artifact_repository.save(version, trained)
 
     promoted = None
     if promote and learning_control.can_learn():

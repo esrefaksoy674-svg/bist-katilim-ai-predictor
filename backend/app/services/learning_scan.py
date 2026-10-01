@@ -2,27 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
-import pandas as pd
-
-from app.services.learning_pipeline import (
-    build_learning_event,
-    process_learning_event,
-)
+from app.services.learning_pipeline import build_learning_event, process_learning_event
 from app.services.market_data import fetch_daily_data
 
 
-def scan_symbol_for_learning(
-    symbol: str,
-    signal_date: date,
-    repository=None,
-):
-    """
-    Bir hissenin belirtilen işlem gününde >%5 yükselip yükselmediğini
-    kontrol eder. Yalnızca >%5 olan günler öğrenme olayı oluşturur.
-
-    Teknik özellikler, sinyal gününden önceki gerçek işlem gününe
-    kadar olan veriyle hesaplanır.
-    """
+def scan_symbol_for_learning(symbol: str, signal_date: date, repository=None):
+    """Belirli işlem günündeki >%5 yükselişi öğrenme olayına dönüştürür."""
 
     data = fetch_daily_data(symbol, period="2y")
     day_rows = data[data.index.date == signal_date]
@@ -30,29 +15,31 @@ def scan_symbol_for_learning(
     if day_rows.empty:
         return None
 
-    signal_row = day_rows.iloc[-1]
-    signal_close = float(signal_row["Close"])
-
+    signal_close = float(day_rows.iloc[-1]["Close"])
     previous_rows = data[data.index.date < signal_date]
+
     if previous_rows.empty:
         return None
 
+    reference_row = previous_rows.iloc[-1]
     reference_date = previous_rows.index[-1].date()
-    reference_close = float(previous_rows.iloc[-1]["Close"])
+    reference_close = float(reference_row["Close"])
 
     if reference_close <= 0:
         return None
 
-    rise_percent = (
-        (signal_close - reference_close)
-        / reference_close
-        * 100
-    )
+    rise_percent = (signal_close - reference_close) / reference_close * 100
 
     if rise_percent <= 5.0:
         return None
 
     technical_data = data[data.index.date <= reference_date].copy()
+    reference = {
+        "symbol": symbol.upper(),
+        "signal_date": signal_date,
+        "reference_date": reference_date,
+        "close": reference_close,
+    }
 
     event = build_learning_event(
         symbol=symbol,
@@ -60,6 +47,7 @@ def scan_symbol_for_learning(
         signal_close=signal_close,
         technical_data=technical_data,
         technical_data_date=reference_date,
+        reference=reference,
     )
 
     process_learning_event(event, repository=repository)
@@ -71,11 +59,7 @@ def scan_universe_for_learning(
     signal_date: date,
     repository=None,
 ) -> dict:
-    """
-    Katılım evrenini tek bir işlem günü için tarar.
-
-    Hatalı bir sembol tüm taramayı durdurmaz; hata listesine alınır.
-    """
+    """Katılım evrenini tek işlem günü için tarar."""
 
     events = []
     errors = []
@@ -90,10 +74,7 @@ def scan_universe_for_learning(
             if event is not None:
                 events.append(event)
         except Exception as exc:
-            errors.append({
-                "symbol": symbol,
-                "error": str(exc),
-            })
+            errors.append({"symbol": symbol, "error": str(exc)})
 
     return {
         "signal_date": signal_date,

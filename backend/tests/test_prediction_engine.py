@@ -61,6 +61,33 @@ def test_prediction_engine_keeps_three_outputs_separate():
     assert result.probability_above_5 != result.model_confidence or result.expected_change_percent != result.probability_above_5
 
 
+def test_prediction_engine_excludes_future_history_from_similarity_statistics():
+    examples = make_examples()
+    features, targets = build_training_matrix(examples)
+    trained = train_model(features, targets, validation_ratio=0.25)
+
+    candidate = examples.iloc[[-1]].copy()
+    candidate["symbol"] = "TUPRS"
+
+    future = candidate.copy()
+    future["reference_date"] = pd.Timestamp("2026-03-01").date()
+    future["actual_change_percent"] = 99.0
+    future["target"] = 1
+
+    history = pd.concat([examples, future], ignore_index=True)
+
+    predictions = build_predictions(
+        trained_model=trained,
+        candidates=candidate,
+        history=history,
+        prediction_date=pd.Timestamp("2026-02-01").date(),
+        model_version="test-1",
+    )
+
+    assert predictions[0].pattern_count <= 16
+    assert predictions[0].expected_change_percent < 99.0
+
+
 def test_prediction_engine_returns_top_n_only():
     examples = make_examples()
     features, targets = build_training_matrix(examples)

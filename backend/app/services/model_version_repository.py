@@ -108,18 +108,33 @@ def restore_registry(
 ) -> ModelRegistry:
     """Kalıcı metadata ve varsa model artefaktlarını runtime registry'ye yükler."""
     models = repository.all()
+
     for stored in models:
         if registry.get(stored.version) is not None:
             continue
+
         artifact = (
             artifact_repository.load(stored.version)
             if artifact_repository is not None
             else None
         )
+
         stored.artifact = artifact
         registry._models[stored.version] = stored
 
-    active_versions = [m.version for m in models if m.status == "ACTIVE"]
-    if active_versions:
-        registry._active_version = sorted(active_versions)[-1]
+    active_models = [
+        model
+        for model in models
+        if model.status == "ACTIVE"
+    ]
+
+    if active_models:
+        active_models.sort(
+            key=lambda model: (
+                model.activated_at is not None,
+                model.activated_at or datetime.min.replace(tzinfo=timezone.utc),
+            )
+        )
+        registry._active_version = active_models[-1].version
+
     return registry

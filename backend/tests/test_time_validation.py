@@ -57,6 +57,24 @@ def test_chronological_split_rejects_short_data():
         )
 
 
+def test_chronological_split_allows_same_date_for_multiple_stocks():
+    dates = pd.to_datetime([
+        "2026-01-02", "2026-01-02", "2026-01-05",
+        "2026-01-05", "2026-01-06", "2026-01-07",
+        "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13",
+    ])
+    features = pd.DataFrame({"value": range(10)}, index=dates)
+    targets = pd.Series(range(10), index=dates)
+
+    train_features, validation_features, _, _ = chronological_split(
+        features, targets, validation_ratio=0.2
+    )
+
+    assert len(train_features) == 8
+    assert len(validation_features) == 2
+    assert train_features.index.max() <= validation_features.index.min()
+
+
 def test_metrics_are_calculated():
     actual = [0, 1, 1, 0, 1]
     predicted = [0, 1, 0, 0, 1]

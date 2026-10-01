@@ -29,20 +29,12 @@ def build_candidate_features(
         if any(features.get(name) is None for name in FEATURE_NAMES):
             continue
 
-        future_rows = data[data.index.date > prediction_date]
-        target_date = (
-            future_rows.index[0].date()
-            if not future_rows.empty
-            else prediction_date
-        )
-
         row = dict(features)
         row["symbol"] = symbol.upper()
-        row["target_date"] = target_date
         rows.append(row)
 
     if not rows:
-        return pd.DataFrame(columns=FEATURE_NAMES + ["symbol", "target_date"])
+        return pd.DataFrame(columns=FEATURE_NAMES + ["symbol"])
 
     return pd.DataFrame(rows)
 
@@ -55,8 +47,14 @@ def run_prediction_scan(
     history: pd.DataFrame,
     prediction_repository: PredictionRepository | None = None,
     top_n: int = 10,
+    target_date: date | None = None,
 ) -> list[Prediction]:
-    """Aktif modelle adayları tarar ve sonuçları isteğe bağlı kalıcılaştırır."""
+    """Aktif modelle adayları tarar.
+
+    target_date dışarıdan verilirse yalnızca bilinen takvim bilgisi olarak
+    kullanılır. Piyasa verisinden gelecekteki işlem gününü okumaz; böylece
+    geçmiş tarihli tahminlerde gelecek veri sızıntısı oluşmaz.
+    """
     candidates = build_candidate_features(symbols, prediction_date)
 
     results = build_predictions(
@@ -68,11 +66,7 @@ def run_prediction_scan(
         top_n=top_n,
     )
 
-    target_dates = (
-        candidates.set_index("symbol")["target_date"].to_dict()
-        if not candidates.empty
-        else {}
-    )
+    resolved_target_date = target_date or prediction_date
     now = datetime.now(timezone.utc)
     predictions = []
 
@@ -80,10 +74,7 @@ def run_prediction_scan(
         prediction = Prediction(
             symbol=result.symbol,
             prediction_date=result.prediction_date,
-            target_date=target_dates.get(
-                result.symbol,
-                result.prediction_date,
-            ),
+            target_date=resolved_target_date,
             probability_above_5=result.probability_above_5,
             expected_change_percent=result.expected_change_percent,
             model_confidence=result.model_confidence,

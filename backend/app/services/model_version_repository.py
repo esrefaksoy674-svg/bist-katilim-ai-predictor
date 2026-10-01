@@ -99,3 +99,27 @@ def sync_registry(
 ) -> None:
     for model in registry.all():
         repository.add(model)
+
+
+def restore_registry(
+    registry: ModelRegistry,
+    repository: ModelVersionRepository,
+    artifact_repository=None,
+) -> ModelRegistry:
+    """Kalıcı metadata ve varsa model artefaktlarını runtime registry'ye yükler."""
+    models = repository.all()
+    for stored in models:
+        if registry.get(stored.version) is not None:
+            continue
+        artifact = (
+            artifact_repository.load(stored.version)
+            if artifact_repository is not None
+            else None
+        )
+        stored.artifact = artifact
+        registry._models[stored.version] = stored
+
+    active_versions = [m.version for m in models if m.status == "ACTIVE"]
+    if active_versions:
+        registry._active_version = sorted(active_versions)[-1]
+    return registry

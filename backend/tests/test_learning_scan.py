@@ -10,14 +10,18 @@ from app.services.learning_scan import (
 
 
 def make_data():
-    dates = pd.date_range("2026-09-24", periods=4, freq="B")
+    dates = pd.date_range("2025-09-24", periods=260, freq="B")
+    close = [100.0] * 260
+    close[-2] = 100.0
+    close[-1] = 106.0
+
     return pd.DataFrame(
         {
-            "Open": [100, 100, 100, 105],
-            "High": [101, 101, 106, 111],
-            "Low": [99, 99, 99, 104],
-            "Close": [100, 100, 106, 110],
-            "Volume": [1000, 1000, 1200, 1500],
+            "Open": close,
+            "High": [value + 1 for value in close],
+            "Low": [value - 1 for value in close],
+            "Close": close,
+            "Volume": [1000.0] * 258 + [1200.0, 1500.0],
         },
         index=dates,
     )
@@ -25,7 +29,7 @@ def make_data():
 
 def test_scan_symbol_ignores_5_percent_or_less(monkeypatch):
     data = make_data().copy()
-    data.loc[data.index[2], "Close"] = 105.0
+    data.iloc[-1, data.columns.get_loc("Close")] = 105.0
 
     monkeypatch.setattr(
         "app.services.learning_scan.fetch_daily_data",
@@ -34,7 +38,7 @@ def test_scan_symbol_ignores_5_percent_or_less(monkeypatch):
 
     result = scan_symbol_for_learning(
         "THYAO",
-        data.index[2].date(),
+        data.index[-1].date(),
     )
 
     assert result is None
@@ -57,12 +61,12 @@ def test_scan_symbol_creates_event_above_5_percent(monkeypatch):
 
     result = scan_symbol_for_learning(
         "THYAO",
-        data.index[2].date(),
+        data.index[-1].date(),
     )
 
     assert result is not None
     assert result.rise_percent == 6.0
-    assert result.reference_date == data.index[1].date()
+    assert result.reference_date == data.index[-2].date()
     assert memory.count() == 1
 
 

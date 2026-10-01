@@ -41,6 +41,7 @@ def test_training_registers_shadow_model_without_forced_activation():
 
     assert result.registered_model.status == "SHADOW"
     assert registry.active() is None
+    assert result.active_model is None
     assert result.registered_model.artifact is result.trained_model
 
 
@@ -59,4 +60,5 @@ def test_learning_disabled_blocks_promotion_but_allows_shadow_training():
 
     assert result.registered_model.status == "SHADOW"
     assert result.promoted_model is None
+    assert result.active_model is None
     assert registry.active() is None

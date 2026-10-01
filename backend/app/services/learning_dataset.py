@@ -6,29 +6,25 @@ import pandas as pd
 
 from app.models.learning_event import LearningEvent
 
+LEARNING_THRESHOLD_PERCENT = 5.0
+
 
 def events_to_dataset(
     events: list[LearningEvent],
     feature_names: list[str] | None = None,
     cutoff_date: date | None = None,
 ) -> tuple[pd.DataFrame, pd.Series]:
+    """Pozitif öğrenme olaylarını >%5 hedef sınıfı olarak hazırlar.
+
+    %5.00 veya altındaki gerçek sonuçlar pozitif sınıf değildir.
+    Gerçek değişim yüzdesi ayrıca korunarak sonraki regresyon katmanında
+    kullanılabilir.
     """
-    Öğrenme olaylarını zaman-sıralı model eğitim veri setine çevirir.
-
-    Her pozitif öğrenme olayı 1 sınıfıdır. Gelecek sızıntısını önlemek için
-    cutoff_date verilirse yalnızca signal_date < cutoff_date kullanılır.
-
-    Negatif sınıflar ayrı piyasa taramasından geldiğinde aynı teknik
-    özellik şemasına eklenebilir; bu fonksiyon pozitif olayları hazırlama
-    katmanıdır.
-    """
-
     filtered = [
         event
         for event in events
         if cutoff_date is None or event.signal_date < cutoff_date
     ]
-
     if not filtered:
         return pd.DataFrame(), pd.Series(dtype=int)
 
@@ -42,21 +38,28 @@ def events_to_dataset(
 
     rows = []
     dates = []
-
     for event in filtered:
-        row = {
+        rows.append({
             name: event.technical_features.get(name)
             for name in feature_names
-        }
-        rows.append(row)
+        })
         dates.append(pd.Timestamp(event.signal_date))
 
     features = pd.DataFrame(rows, index=pd.DatetimeIndex(dates))
     targets = pd.Series(
-        [1] * len(rows),
+        [int(event.rise_percent > LEARNING_THRESHOLD_PERCENT) for event in filtered],
         index=features.index,
         dtype=int,
         name="target",
     )
-
     return features, targets
+
+
+def build_target(change_percent: float) -> int:
+    """Sonraki işlem gününün %5 üzeri hedefini üretir."""
+    return int(change_percent > LEARNING_THRESHOLD_PERCENT)
+
+
+def build_regression_target(change_percent: float) -> float:
+    """Gerçek değişim yüzdesini ayrı hedef olarak korur."""
+    return float(change_percent)

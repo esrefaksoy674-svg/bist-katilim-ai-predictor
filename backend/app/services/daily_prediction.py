@@ -24,12 +24,15 @@ def run_daily_prediction(
     prediction_repository: PredictionRepository | None = None,
     symbols: list[str] | None = None,
     top_n: int = 10,
+    target_date: date | None = None,
 ) -> DailyPredictionRun:
     """
     Günlük tahmin akışını tek noktadan çalıştırır.
 
     Evren verilmezse güncel Katılım evreni kaynaktan alınır.
     Yalnızca ACTIVE model kullanılabilir; SHADOW modelle tahmin yapılmaz.
+    target_date verilmezse değerlendirme tarihi ayrıca çözümlenmek üzere
+    prediction_date kullanılır; gelecekteki piyasa verisi taranmaz.
     """
     active = registry.active()
     if active is None:
@@ -52,6 +55,7 @@ def run_daily_prediction(
         history=history,
         prediction_repository=prediction_repository,
         top_n=top_n,
+        target_date=target_date,
     )
 
     return DailyPredictionRun(

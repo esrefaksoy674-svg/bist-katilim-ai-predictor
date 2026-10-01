@@ -4,7 +4,12 @@ from datetime import date
 
 from fastapi import FastAPI, HTTPException
 
-from app.core.health import get_health_status
+from app.core.health import (
+    check_pipeline_imports,
+    check_runtime_configuration,
+    get_health_status,
+)
+from app.services.market_data import fetch_daily_data
 from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.universe import fetch_katilim_universe
 
@@ -33,15 +38,39 @@ def health():
 def health_self_test():
     checks = {
         "api": True,
+        "runtime_configuration": check_runtime_configuration(),
+        "pipeline_imports": check_pipeline_imports(),
         "universe_source": False,
+        "market_data_source": False,
+        "persistence_read": False,
     }
     errors = {}
 
-    try:
-        symbols = fetch_katilim_universe()
-        checks["universe_source"] = bool(symbols)
-    except Exception as exc:
-        errors["universe_source"] = str(exc)
+    read_only_checks = {
+        "universe_source": fetch_katilim_universe,
+        "market_data_source": lambda: fetch_daily_data("THYAO", period="5d"),
+        "persistence_read": lambda: get_prediction_repository().get_by_date(date.today()),
+    }
+
+    for name, check in read_only_checks.items():
+        try:
+            result = check()
+            if name == "persistence_read":
+                checks[name] = result is not None
+            elif hasattr(result, "empty"):
+                checks[name] = not result.empty
+            else:
+                checks[name] = bool(result)
+            if not checks[name]:
+                errors[name] = "Dependency returned no usable data."
+        except Exception as exc:
+            # Exception text can include credentials or provider response details.
+            errors[name] = {"type": type(exc).__name__}
+
+    if not checks["runtime_configuration"]:
+        errors["runtime_configuration"] = "Required application or Supabase configuration is missing or invalid."
+    if not checks["pipeline_imports"]:
+        errors["pipeline_imports"] = "One or more required pipeline packages are unavailable."
 
     status = "healthy" if all(checks.values()) else "degraded"
 

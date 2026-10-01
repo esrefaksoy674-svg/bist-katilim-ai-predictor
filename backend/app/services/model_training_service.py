@@ -10,7 +10,6 @@ from app.services.model_repository import (
 )
 from app.services.model_registry import ModelRegistry
 from app.services.persistent_training import train_from_market_history
-from app.services.supabase_client import get_supabase_client
 from app.services.universe import fetch_katilim_universe
 
 
@@ -30,7 +29,6 @@ def train_and_persist_market_model(
     if not symbols:
         raise RuntimeError("Model eğitimi için Katılım evreni boş.")
 
-    client = get_supabase_client()
     version_repository = get_model_version_repository()
     artifact_repository = get_model_artifact_repository()
 

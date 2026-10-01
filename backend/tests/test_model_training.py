@@ -8,6 +8,12 @@ from app.services.model_training import (
 
 
 def make_training_data():
+    dates = pd.date_range(
+        "2026-01-02",
+        periods=12,
+        freq="B",
+    )
+
     features = pd.DataFrame(
         {
             "rsi": [
@@ -52,7 +58,8 @@ def make_training_data():
                 1.2,
                 3.5,
             ],
-        }
+        },
+        index=dates,
     )
 
     targets = pd.Series(
@@ -69,7 +76,8 @@ def make_training_data():
             1,
             0,
             1,
-        ]
+        ],
+        index=dates,
     )
 
     return features, targets
@@ -130,17 +138,43 @@ def test_empty_training_data_is_rejected():
 
 
 def test_single_class_training_data_is_rejected():
+    dates = pd.date_range(
+        "2026-01-02",
+        periods=10,
+        freq="B",
+    )
+
     features = pd.DataFrame(
         {
             "rsi": [40, 45, 50, 55, 60, 65, 70, 75, 80, 85],
+        },
+        index=dates,
+    )
+
+    targets = pd.Series(
+        [1] * 10,
+        index=dates,
+    )
+
+    with pytest.raises(ValueError):
+        train_model(
+            features,
+            targets,
+        )
+
+
+def test_non_datetime_training_data_is_rejected():
+    features = pd.DataFrame(
+        {
+            "rsi": range(10),
         }
     )
 
     targets = pd.Series(
-        [1] * 10
+        [0, 0, 0, 0, 1, 1, 1, 0, 1, 0],
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DatetimeIndex"):
         train_model(
             features,
             targets,

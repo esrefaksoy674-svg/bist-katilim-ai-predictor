@@ -13,9 +13,9 @@ def chronological_split(
     Veriyi kronolojik sırayı koruyarak eğitim ve doğrulama
     bölümlerine ayırır.
 
-    DatetimeIndex varsa veriler tarih sırasına göre güvenli biçimde
-    sıralanır. Böylece çağıran kodun yanlış sırada veri vermesi
-    geleceğin eğitim bölümüne sızmasına neden olmaz.
+    Aynı işlem gününde farklı hisselerden gelen örnekler
+    geçerli olduğu için yinelenen DatetimeIndex değerlerine izin verir.
+    Sıralama yalnızca tarih sırasını güvence altına alır.
     """
 
     if len(features) != len(targets):
@@ -37,12 +37,7 @@ def chronological_split(
     working_targets = targets.copy()
 
     if isinstance(working_features.index, pd.DatetimeIndex):
-        if working_features.index.has_duplicates:
-            raise ValueError(
-                "Zaman bazlı doğrulamada yinelenen tarih indeksleri kullanılamaz."
-            )
-
-        order = working_features.index.argsort()
+        order = working_features.index.argsort(kind="stable")
         working_features = working_features.iloc[order].copy()
         working_targets = working_targets.iloc[order].copy()
 

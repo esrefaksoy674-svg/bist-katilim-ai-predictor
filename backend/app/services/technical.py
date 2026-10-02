@@ -43,12 +43,17 @@ def calculate_features(data: pd.DataFrame) -> dict:
     macd_signal = macd_indicator.macd_signal()
     macd_histogram = macd_indicator.macd_diff()
 
-    atr = AverageTrueRange(
-        high=high,
-        low=low,
-        close=close,
-        window=14,
-    ).average_true_range()
+    if len(df) >= 14:
+        atr = AverageTrueRange(
+            high=high,
+            low=low,
+            close=close,
+            window=14,
+        ).average_true_range()
+    else:
+        # ta.AverageTrueRange raises IndexError before its window is available.
+        # Keep the feature missing so the model imputer can handle new listings.
+        atr = pd.Series(float("nan"), index=df.index)
 
     sma20 = SMAIndicator(close=close, window=20).sma_indicator()
     sma50 = SMAIndicator(close=close, window=50).sma_indicator()

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>BIST Katılım | Tahmin Paneli</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#263750;--muted:#9aacc4;--text:#edf4ff;--green:#38d39f;--red:#ff7c86;--blue:#7cb9ff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 420px at 80% -10%,#173354 0,transparent 70%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{width:min(1120px,100% - 32px);margin:0 auto;padding:36px 0 56px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}
+    .brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border-radius:13px;background:#143a3a;color:var(--green);display:grid;place-items:center;font-weight:800;font-size:19px}
+    h1{font-size:clamp(22px,4vw,31px);line-height:1.2;margin:0}.sub,.muted{color:var(--muted)}.sub{margin:4px 0 0}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#101a2a;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px}
+    label{color:var(--muted);font-size:13px}input,button{font:inherit;color:var(--text);background:#0b1422;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+    button{background:#137a61;border-color:#199675;font-weight:650;cursor:pointer}button:hover{background:#159274}button:disabled{opacity:.6;cursor:wait}
+    #status{margin-left:auto;color:var(--muted);font-size:13px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+    .stat,.table-wrap,.empty{background:#111b2b;border:1px solid var(--line);border-radius:16px}.stat{padding:17px}.stat strong{display:block;font-size:24px;margin-top:4px}
+    .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:720px}th,td{text-align:left;padding:13px 16px;border-bottom:1px solid #223149}th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+    tbody tr:last-child td{border-bottom:0}.symbol{font-weight:750;color:var(--blue)}.pill{display:inline-block;padding:3px 9px;border-radius:999px;background:#172a3d;color:var(--muted);font-size:12px}.positive{color:var(--green)}.negative{color:var(--red)}
+    .empty{padding:32px;text-align:center;color:var(--muted)}footer{margin-top:18px;color:var(--muted);font-size:12px}
+    @media(max-width:650px){main{width:calc(100% - 22px);padding-top:22px}.top{align-items:flex-start}.stats{grid-template-columns:1fr}.toolbar{align-items:stretch}.toolbar label{width:100%}input{flex:1}#status{width:100%;margin:0}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand"><div class="mark" aria-hidden="true">B</div><div><h1>BIST Katılım Tahminleri</h1><p class="sub">Gün sonu model çıktıları</p></div></div>
+  </header>
+  <section class="toolbar" aria-label="Tahmin filtreleri">
+    <label for="prediction-date">Tahmin tarihi</label>
+    <input id="prediction-date" type="date">
+    <button id="refresh" type="button">Yenile</button>
+    <span id="status" role="status" aria-live="polite">Veriler yükleniyor…</span>
+  </section>
+  <section class="stats" aria-label="Özet">
+    <article class="stat"><span class="muted">Kayıt sayısı</span><strong id="count">—</strong></article>
+    <article class="stat"><span class="muted">Ortalama beklenen değişim</span><strong id="average">—</strong></article>
+    <article class="stat"><span class="muted">Ortalama model güveni</span><strong id="confidence">—</strong></article>
+  </section>
+  <section id="results" class="table-wrap" aria-label="Tahmin listesi"></section>
+  <footer>Tahminler model çıktısıdır; yatırım tavsiyesi veya getiri garantisi değildir. Bu panel alım-satım işlemi yapmaz.</footer>
+</main>
+<script>
+(() => {
+  const dateInput = document.querySelector("#prediction-date");
+  const refreshButton = document.querySelector("#refresh");
+  const status = document.querySelector("#status");
+  const results = document.querySelector("#results");
+  const count = document.querySelector("#count");
+  const average = document.querySelector("#average");
+  const confidence = document.querySelector("#confidence");
+  dateInput.value = new Date().toLocaleDateString("en-CA", {timeZone:"Europe/Istanbul"});
+
+  const percent = (value) => Number.isFinite(Number(value)) ? (Number(value) * 100).toLocaleString("tr-TR", {maximumFractionDigits:1}) + "%" : "—";
+  const change = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString("tr-TR", {maximumFractionDigits:2}) + "%" : "—";
+
+  function render(rows) {
+    results.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Bu tarih için tahmin bulunamadı.";
+      results.append(empty);
+      return;
+    }
+    const table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Hisse</th><th>Hedef tarih</th><th>%5 üzeri olasılığı</th><th>Beklenen değişim</th><th>Model güveni</th><th>Sonuç</th></tr></thead>";
+    const body = document.createElement("tbody");
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      const values = [
+        [row.symbol || "—", "symbol"],
+        [row.target_date || "—", ""],
+        [percent(row.probability_above_5), ""],
+        [change(row.expected_change_percent), Number(row.expected_change_percent) >= 0 ? "positive" : "negative"],
+        [percent(row.model_confidence), ""],
+        [row.successful === true ? "Başarılı" : row.successful === false ? "Başarısız" : "Bekliyor", "pill"]
+      ];
+      for (const [value, className] of values) {
+        const td = document.createElement("td");
+        td.textContent = value;
+        if (className) td.className = className;
+        tr.append(td);
+      }
+      body.append(tr);
+    }
+    table.append(body);
+    results.append(table);
+  }
+
+  async function load() {
+    refreshButton.disabled = true;
+    status.textContent = "Veriler alınıyor…";
+    const params = new URLSearchParams({prediction_date: dateInput.value});
+    try {
+      const response = await fetch("/predictions?" + params.toString(), {headers:{Accept:"application/json"}});
+      if (!response.ok) throw new Error("API " + response.status);
+      const payload = await response.json();
+      const rows = Array.isArray(payload.predictions) ? payload.predictions : [];
+      count.textContent = rows.length.toLocaleString("tr-TR");
+      const averageValue = rows.length ? rows.reduce((sum, row) => sum + (Number(row.expected_change_percent) || 0), 0) / rows.length : null;
+      const confidenceValue = rows.length ? rows.reduce((sum, row) => sum + (Number(row.model_confidence) || 0), 0) / rows.length : null;
+      average.textContent = averageValue === null ? "—" : change(averageValue);
+      confidence.textContent = confidenceValue === null ? "—" : percent(confidenceValue);
+      render(rows);
+      status.textContent = "Son güncelleme: " + new Date().toLocaleTimeString("tr-TR");
+    } catch (error) {
+      render([]);
+      status.textContent = error instanceof TypeError ? "API bağlantısı kurulamadı." : "Tahminler yüklenemedi.";
+      count.textContent = average.textContent = confidence.textContent = "—";
+    } finally {
+      refreshButton.disabled = false;
+    }
+  }
+  refreshButton.addEventListener("click", load);
+  dateInput.addEventListener("change", load);
+  load();
+})();
+</script>
+</body>
+</html>

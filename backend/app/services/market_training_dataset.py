@@ -65,7 +65,13 @@ def build_market_training_dataset(
         column for column in combined.columns
         if column not in METADATA_COLUMNS
     ]
+    # Keep the outcome date as the DatetimeIndex so chronological validation
+    # sorts and splits examples by time rather than by the temporary row number.
     features = combined[feature_columns].copy()
+    features.index = pd.DatetimeIndex(
+        pd.to_datetime(combined["target_date"]),
+        name="target_date",
+    )
     targets = combined["target"].astype(int).copy()
     targets.index = features.index
 

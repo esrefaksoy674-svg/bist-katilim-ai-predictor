@@ -59,7 +59,7 @@ def test_health_self_test_reports_pipeline_failures_without_exposing_error(monke
     assert "secret provider response" not in response.text
 
 
-def test_health_self_test_passes_when_read_only_dependencies_are_available(monkeypatch):
+def test_health_self_test_passes_with_read_only_dependency_checks(monkeypatch):
     monkeypatch.setattr("app.main.check_runtime_configuration", lambda: True)
     monkeypatch.setattr("app.main.check_pipeline_imports", lambda: True)
     monkeypatch.setattr("app.main.fetch_katilim_universe", lambda: ["THYAO"])
@@ -76,6 +76,14 @@ def test_health_self_test_passes_when_read_only_dependencies_are_available(monke
     assert body["status"] == "healthy"
     assert all(body["checks"].values())
     assert body["errors"] == {}
+    assert body["checked_at"]
+    assert body["duration_ms"] >= 0
+    assert set(body["check_durations_ms"]) == {
+        "universe_source",
+        "market_data_source",
+        "persistence_read",
+    }
+    assert all(duration >= 0 for duration in body["check_durations_ms"].values())
 
 
 def test_news_endpoint_returns_configured_ingestion_result(monkeypatch):

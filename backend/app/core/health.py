@@ -26,18 +26,25 @@ def get_health_status() -> dict:
 
 
 def check_runtime_configuration() -> bool:
-    """Validate non-secret runtime settings without exposing credential values."""
-    if not settings.app_name.strip() or not settings.app_version.strip():
+    """Validate required runtime settings without exposing credential values."""
+    if not all(
+        value.strip()
+        for value in (settings.app_name, settings.app_version, settings.environment)
+    ):
         return False
 
-    if not settings.environment.strip():
+    if not settings.supabase_url.strip() or not settings.supabase_key.strip():
         return False
 
-    if not settings.supabase_url or not settings.supabase_key:
+    parsed_url = urlparse(settings.supabase_url.strip())
+    if parsed_url.scheme != "https" or not parsed_url.hostname:
         return False
 
-    parsed_url = urlparse(settings.supabase_url)
-    return parsed_url.scheme in {"https", "http"} and bool(parsed_url.netloc)
+    # Credentials embedded in a URL are easy to leak through diagnostics/logs.
+    if parsed_url.username or parsed_url.password:
+        return False
+
+    return True
 
 
 def check_pipeline_imports() -> bool:

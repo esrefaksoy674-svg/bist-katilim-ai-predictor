@@ -25,7 +25,9 @@ class SupabaseStorageModelArtifactRepository(ModelArtifactRepository):
     @staticmethod
     def _serialize(artifact: Any) -> bytes:
         buffer = BytesIO()
-        joblib.dump(artifact, buffer)
+        # Random-forest artifacts can exceed Supabase Free's 50 MB upload limit
+        # when stored uncompressed. joblib.load detects the compression format.
+        joblib.dump(artifact, buffer, compress=3)
         return buffer.getvalue()
 
     @staticmethod

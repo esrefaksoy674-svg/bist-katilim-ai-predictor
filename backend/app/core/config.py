@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     supabase_url: str = ""
     supabase_key: str = ""
+    self_test_token: str = ""
 
     # Override with NEWS_RSS_URLS. Use KAP_RSS_URLS only for an authorized
     # KAP distributor/feed; KAP's official data API requires a data contract.

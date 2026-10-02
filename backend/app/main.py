@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import secrets
 from datetime import date, datetime, timezone
 from time import perf_counter
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 
+from app.core.config import settings
 from app.core.health import (
     check_pipeline_imports,
     check_runtime_configuration,
@@ -37,8 +39,20 @@ def health():
 
 
 @app.get("/health/self-test")
-def health_self_test():
-    """Run bounded, read-only checks for API and critical pipeline dependencies."""
+def health_self_test(x_self_test_token: str | None = Header(default=None)):
+    """Run protected, read-only checks for API and critical pipeline dependencies."""
+    expected_token = settings.self_test_token
+    if not expected_token.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="Self-test access is not configured.",
+        )
+    if x_self_test_token is None or not secrets.compare_digest(
+        x_self_test_token,
+        expected_token,
+    ):
+        raise HTTPException(status_code=401, detail="Unauthorized.")
+
     started = perf_counter()
     checked_at = datetime.now(timezone.utc).isoformat()
     checks = {

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import secrets
 from datetime import date, datetime, timezone
+from pathlib import Path
 from time import perf_counter
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.health import (
@@ -31,6 +33,13 @@ def root():
         "application": "BIST Katılım AI Predictor",
         "version": "0.1.0",
     }
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    """Serve the same-origin, static predictions dashboard."""
+    dashboard_file = Path(__file__).parent / "static" / "dashboard.html"
+    return FileResponse(dashboard_file, media_type="text/html; charset=utf-8")
 
 
 @app.get("/health")

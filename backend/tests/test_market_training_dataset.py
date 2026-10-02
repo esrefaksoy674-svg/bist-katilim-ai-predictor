@@ -41,6 +41,8 @@ def test_market_training_dataset_contains_positive_and_baseline(monkeypatch):
     assert set(targets.tolist()) == {0, 1}
     assert "target" not in features.columns
     assert "actual_change_percent" not in features.columns
+    assert isinstance(features.index, pd.DatetimeIndex)
+    assert features.index.is_monotonic_increasing
 
 
 def test_market_training_dataset_respects_cutoff(monkeypatch):
@@ -61,3 +63,5 @@ def test_market_training_dataset_respects_cutoff(monkeypatch):
 
     assert len(features) == 3
     assert len(targets) == 3
+    assert isinstance(features.index, pd.DatetimeIndex)
+    assert features.index.max() < pd.Timestamp(cutoff)

@@ -9,16 +9,7 @@ def test_health_status():
     assert result["timestamp"]
 
 
-def test_runtime_configuration_requires_supabase_credentials(monkeypatch):
-    from app.core.health import settings
-
-    monkeypatch.setattr(settings, "supabase_url", "https://example.supabase.co")
-    monkeypatch.setattr(settings, "supabase_key", "")
-
-    assert check_runtime_configuration() is False
-
-
-def test_runtime_configuration_accepts_configured_supabase(monkeypatch):
+def _configure_valid_runtime(monkeypatch):
     from app.core.health import settings
 
     monkeypatch.setattr(settings, "app_name", "BIST Predictor")
@@ -27,7 +18,31 @@ def test_runtime_configuration_accepts_configured_supabase(monkeypatch):
     monkeypatch.setattr(settings, "supabase_url", "https://example.supabase.co")
     monkeypatch.setattr(settings, "supabase_key", "test-key")
 
+
+def test_runtime_configuration_requires_supabase_credentials(monkeypatch):
+    _configure_valid_runtime(monkeypatch)
+    from app.core.health import settings
+
+    monkeypatch.setattr(settings, "supabase_key", "")
+
+    assert check_runtime_configuration() is False
+
+
+def test_runtime_configuration_accepts_configured_supabase(monkeypatch):
+    _configure_valid_runtime(monkeypatch)
+
     assert check_runtime_configuration() is True
+
+
+def test_runtime_configuration_rejects_insecure_or_credential_bearing_url(monkeypatch):
+    _configure_valid_runtime(monkeypatch)
+    from app.core.health import settings
+
+    monkeypatch.setattr(settings, "supabase_url", "http://example.supabase.co")
+    assert check_runtime_configuration() is False
+
+    monkeypatch.setattr(settings, "supabase_url", "https://user:password@example.supabase.co")
+    assert check_runtime_configuration() is False
 
 
 def test_pipeline_import_check_reports_missing_module(monkeypatch):

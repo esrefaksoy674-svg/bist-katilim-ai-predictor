@@ -70,3 +70,22 @@ def test_calculate_features_rejects_empty_data():
     raise AssertionError(
         "Boş veri teknik analiz tarafından kabul edilmemeliydi."
     )
+
+
+def test_calculate_features_handles_history_shorter_than_atr_window():
+    periods = 11
+    close = np.linspace(100, 110, periods)
+    data = pd.DataFrame(
+        {
+            "Open": close - 1,
+            "High": close + 2,
+            "Low": close - 2,
+            "Close": close,
+            "Volume": np.full(periods, 1_000_000, dtype=float),
+        },
+        index=pd.date_range("2026-01-01", periods=periods, freq="B"),
+    )
+
+    result = calculate_features(data)
+
+    assert result["atr"] is None

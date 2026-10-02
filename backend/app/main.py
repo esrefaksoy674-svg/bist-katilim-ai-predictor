@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
+from time import perf_counter
 
 from fastapi import FastAPI, HTTPException
 
@@ -37,6 +38,9 @@ def health():
 
 @app.get("/health/self-test")
 def health_self_test():
+    """Run bounded, read-only checks for API and critical pipeline dependencies."""
+    started = perf_counter()
+    checked_at = datetime.now(timezone.utc).isoformat()
     checks = {
         "api": True,
         "runtime_configuration": check_runtime_configuration(),
@@ -47,13 +51,17 @@ def health_self_test():
     }
     errors = {}
 
+    # These probes only fetch source data or read existing predictions; they never
+    # create, update, or delete application data.
     read_only_checks = {
         "universe_source": fetch_katilim_universe,
         "market_data_source": lambda: fetch_daily_data("THYAO", period="5d"),
         "persistence_read": lambda: get_prediction_repository().get_by_date(date.today()),
     }
+    check_durations_ms = {}
 
     for name, check in read_only_checks.items():
+        check_started = perf_counter()
         try:
             result = check()
             if name == "persistence_read":
@@ -66,14 +74,25 @@ def health_self_test():
                 errors[name] = "Dependency returned no usable data."
         except Exception as exc:
             errors[name] = {"type": type(exc).__name__}
+        finally:
+            check_durations_ms[name] = round((perf_counter() - check_started) * 1000, 2)
 
     if not checks["runtime_configuration"]:
-        errors["runtime_configuration"] = "Required application or Supabase configuration is missing or invalid."
+        errors["runtime_configuration"] = (
+            "Required application or Supabase configuration is missing or invalid."
+        )
     if not checks["pipeline_imports"]:
         errors["pipeline_imports"] = "One or more required pipeline packages are unavailable."
 
     status = "healthy" if all(checks.values()) else "degraded"
-    return {"status": status, "checks": checks, "errors": errors}
+    return {
+        "status": status,
+        "checked_at": checked_at,
+        "duration_ms": round((perf_counter() - started) * 1000, 2),
+        "checks": checks,
+        "check_durations_ms": check_durations_ms,
+        "errors": errors,
+    }
 
 
 @app.get("/news")

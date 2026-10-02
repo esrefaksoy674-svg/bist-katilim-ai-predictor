@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
 
@@ -33,7 +34,26 @@ def test_universe_endpoint_returns_service_unavailable_on_source_error(monkeypat
     assert response.status_code == 503
 
 
+def test_health_self_test_requires_configured_token(monkeypatch):
+    monkeypatch.setattr(settings, "self_test_token", "")
+
+    response = client.get("/health/self-test")
+
+    assert response.status_code == 503
+
+
+def test_health_self_test_rejects_missing_or_invalid_token(monkeypatch):
+    monkeypatch.setattr(settings, "self_test_token", "configured-secret")
+
+    assert client.get("/health/self-test").status_code == 401
+    assert client.get(
+        "/health/self-test",
+        headers={"X-Self-Test-Token": "wrong-secret"},
+    ).status_code == 401
+
+
 def test_health_self_test_reports_pipeline_failures_without_exposing_error(monkeypatch):
+    monkeypatch.setattr(settings, "self_test_token", "configured-secret")
     monkeypatch.setattr("app.main.check_runtime_configuration", lambda: True)
     monkeypatch.setattr("app.main.check_pipeline_imports", lambda: True)
     monkeypatch.setattr(
@@ -46,7 +66,10 @@ def test_health_self_test_reports_pipeline_failures_without_exposing_error(monke
         lambda: type("Repository", (), {"get_by_date": lambda self, value: []})(),
     )
 
-    response = client.get("/health/self-test")
+    response = client.get(
+        "/health/self-test",
+        headers={"X-Self-Test-Token": "configured-secret"},
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -60,6 +83,7 @@ def test_health_self_test_reports_pipeline_failures_without_exposing_error(monke
 
 
 def test_health_self_test_passes_with_read_only_dependency_checks(monkeypatch):
+    monkeypatch.setattr(settings, "self_test_token", "configured-secret")
     monkeypatch.setattr("app.main.check_runtime_configuration", lambda: True)
     monkeypatch.setattr("app.main.check_pipeline_imports", lambda: True)
     monkeypatch.setattr("app.main.fetch_katilim_universe", lambda: ["THYAO"])
@@ -69,7 +93,10 @@ def test_health_self_test_passes_with_read_only_dependency_checks(monkeypatch):
         lambda: type("Repository", (), {"get_by_date": lambda self, value: []})(),
     )
 
-    response = client.get("/health/self-test")
+    response = client.get(
+        "/health/self-test",
+        headers={"X-Self-Test-Token": "configured-secret"},
+    )
 
     assert response.status_code == 200
     body = response.json()

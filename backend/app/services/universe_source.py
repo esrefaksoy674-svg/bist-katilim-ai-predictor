@@ -74,63 +74,66 @@ def fetch_official_katilim_data() -> pd.DataFrame:
     return best_df
 
 
+def _normalize_column_name(value: object) -> str:
+    import re
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKD", str(value))
+    normalized = "".join(
+        character
+        for character in normalized
+        if not unicodedata.combining(character)
+    )
+    normalized = normalized.replace("\ufeff", "").casefold()
+    return re.sub(r"[^a-z0-9]+", "", normalized)
+
+
 def extract_symbols(df: pd.DataFrame) -> list[str]:
-    """
-    Veri tablosundan hisse sembollerini bulur.
-    Sütun adı değişse bile sembol sütununu
-    makul adaylar arasından belirlemeye çalışır.
-    """
+    """Extract BIST tickers from the official constituent table."""
 
-    candidates = [
-        "Kod",
-        "Kodu",
-        "Sembol",
-        "Symbol",
-        "Hisse Kodu",
-        "Pay Kodu",
-        "Hisse",
-    ]
-
-    column = None
-
-    for candidate in candidates:
-        for actual in df.columns:
-            if (
-                str(actual).strip().lower()
-                == candidate.lower()
-            ):
-                column = actual
-                break
-
-        if column is not None:
-            break
+    candidates = {
+        "kod",
+        "kodu",
+        "sembol",
+        "sembolkodu",
+        "symbol",
+        "hisse",
+        "hissekodu",
+        "paykodu",
+        "bilesenkodu",
+    }
+    column = next(
+        (
+            actual
+            for actual in df.columns
+            if _normalize_column_name(actual) in candidates
+        ),
+        None,
+    )
 
     if column is None:
+        columns = ", ".join(str(value) for value in df.columns)
         raise RuntimeError(
-            "Katılım verisinde hisse sembolü sütunu bulunamadı."
+            "Katılım verisinde hisse sembolü sütunu bulunamadı. "
+            f"Gelen sütunlar: {columns}"
         )
 
-    symbols = []
-
+    symbols = set()
     for value in df[column].dropna():
         symbol = str(value).strip().upper()
+        # Official BIST constituent pages may suffix the ticker with ".E".
+        if symbol.endswith(".E"):
+            symbol = symbol[:-2]
 
-        if (
-            symbol
-            and symbol.isalnum()
-            and 2 <= len(symbol) <= 10
-        ):
-            symbols.append(symbol)
-
-    symbols = sorted(set(symbols))
+        if symbol.isalnum() and 2 <= len(symbol) <= 10:
+            symbols.add(symbol)
 
     if not symbols:
         raise RuntimeError(
             "Katılım verisinden hiç hisse sembolü çıkarılamadı."
         )
 
-    return symbols
-
+    return sorted(symbols)
 
 def fetch_katilim_symbols() -> list[str]:
     df = fetch_official_katilim_data()

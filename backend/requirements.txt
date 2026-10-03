@@ -13,3 +13,4 @@ feedparser
 python-dotenv
 supabase
 joblib
+exchange-calendars>=4.5,<5

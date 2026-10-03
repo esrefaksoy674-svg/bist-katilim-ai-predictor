@@ -51,16 +51,16 @@ def test_predictions_api_defaults_to_latest_available_date(monkeypatch):
     assert response.json()["predictions"] == []
 
 
-def test_predictions_api_hides_stale_targets_and_low_probability_rows(monkeypatch):
+def test_predictions_api_shows_only_next_session_rows_with_five_percent_expected_gain(monkeypatch):
     class MixedRepository:
         def get_by_date(self, prediction_date):
             assert prediction_date == date(2026, 10, 2)
             return [
                 SimpleNamespace(
-                    symbol="BAHKM",
+                    symbol="EDGE",
                     target_date=date(2026, 10, 5),
-                    probability_above_5=0.655,
-                    expected_change_percent=0.15,
+                    probability_above_5=0.20,
+                    expected_change_percent=5.0,
                     model_confidence=0.936,
                     pattern_count=10,
                     explanation={},
@@ -70,10 +70,10 @@ def test_predictions_api_hides_stale_targets_and_low_probability_rows(monkeypatc
                     evaluated_at=None,
                 ),
                 SimpleNamespace(
-                    symbol="YKSLN",
+                    symbol="HIGH",
                     target_date=date(2026, 10, 5),
-                    probability_above_5=0.63,
-                    expected_change_percent=0.54,
+                    probability_above_5=0.90,
+                    expected_change_percent=6.1,
                     model_confidence=0.936,
                     pattern_count=9,
                     explanation={},
@@ -83,10 +83,10 @@ def test_predictions_api_hides_stale_targets_and_low_probability_rows(monkeypatc
                     evaluated_at=None,
                 ),
                 SimpleNamespace(
-                    symbol="OLD",
+                    symbol="STALE",
                     target_date=date(2026, 10, 2),
                     probability_above_5=0.8,
-                    expected_change_percent=1.0,
+                    expected_change_percent=9.0,
                     model_confidence=0.9,
                     pattern_count=4,
                     explanation={},
@@ -98,8 +98,8 @@ def test_predictions_api_hides_stale_targets_and_low_probability_rows(monkeypatc
                 SimpleNamespace(
                     symbol="LOW",
                     target_date=date(2026, 10, 5),
-                    probability_above_5=0.49,
-                    expected_change_percent=1.0,
+                    probability_above_5=0.99,
+                    expected_change_percent=4.99,
                     model_confidence=0.9,
                     pattern_count=4,
                     explanation={},
@@ -121,7 +121,7 @@ def test_predictions_api_hides_stale_targets_and_low_probability_rows(monkeypatc
     assert response.status_code == 200
     payload = response.json()
     assert payload["count"] == 2
-    assert [row["symbol"] for row in payload["predictions"]] == ["BAHKM", "YKSLN"]
+    assert [row["symbol"] for row in payload["predictions"]] == ["EDGE", "HIGH"]
     assert {row["target_date"] for row in payload["predictions"]} == {"2026-10-05"}
 
 

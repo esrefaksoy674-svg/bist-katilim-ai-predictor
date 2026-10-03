@@ -25,6 +25,9 @@ class FakeQuery:
     def order(self, value, desc=False):
         return self
 
+    def limit(self, count):
+        return self
+
     def execute(self):
         return FakeResponse(self.rows)
 
@@ -77,3 +80,18 @@ def test_prediction_repository_get_by_date():
 
     assert len(results) == 1
     assert results[0].symbol == "TUPRS"
+
+
+
+def test_prediction_repository_returns_latest_prediction_date():
+    repo = SupabasePredictionRepository(
+        FakeClient([{"prediction_date": "2026-10-02"}])
+    )
+
+    assert repo.get_latest_date() == date(2026, 10, 2)
+
+
+def test_prediction_repository_returns_none_when_no_predictions_exist():
+    repo = SupabasePredictionRepository(FakeClient())
+
+    assert repo.get_latest_date() is None

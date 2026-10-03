@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.services.daily_news import run_daily_news_collection
+from app.services.prediction_evaluation import evaluate_predictions_for_target_date
 from app.services.daily_prediction import run_daily_prediction
 from app.services.learning_runner import run_daily_learning
 from app.services.prediction_history import build_prediction_history
@@ -23,6 +24,11 @@ def run_daily_scan(
         raise RuntimeError("Günlük tarama için Katılım evreni boş.")
 
     target_date = next_trading_day(trading_date)
+    prediction_repository = get_prediction_repository()
+    evaluated_prediction_count = evaluate_predictions_for_target_date(
+        repository=prediction_repository,
+        target_date=trading_date,
+    )
 
     learning_result = None
     if learning_enabled:
@@ -36,8 +42,6 @@ def run_daily_scan(
         symbols=symbols,
         prediction_date=trading_date,
     )
-    prediction_repository = get_prediction_repository()
-
     prediction_result = run_daily_prediction(
         prediction_date=trading_date,
         target_date=target_date,
@@ -69,6 +73,7 @@ def run_daily_scan(
         "target_date": target_date.isoformat(),
         "universe_count": len(symbols),
         "learning": learning_result,
+        "evaluated_prediction_count": evaluated_prediction_count,
         "predictions": prediction_result,
         "news": news_result,
     }

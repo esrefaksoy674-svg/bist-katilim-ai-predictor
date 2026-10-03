@@ -15,8 +15,8 @@ def make_event(symbol, signal_date, rise):
     )
 
 
-def test_threshold_is_strictly_above_five_percent():
-    assert build_target(5.00) == 0
+def test_threshold_includes_five_percent_and_higher():
+    assert build_target(5.00) == 1
     assert build_target(5.01) == 1
     assert build_target(4.99) == 0
     assert build_target(-2.0) == 0

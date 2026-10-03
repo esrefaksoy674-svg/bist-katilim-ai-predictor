@@ -17,10 +17,23 @@ def evaluate_predictions_for_date(
     Başarı ölçütü modelin hedefiyle aynıdır: gerçekleşen değişim > %5.
     """
     predictions = repository.get_by_date(prediction_date)
+    return _evaluate_predictions(repository, predictions, target_date)
+
+
+def evaluate_predictions_for_target_date(
+    repository: PredictionRepository,
+    target_date: date,
+) -> int:
+    """Evaluate every stored prediction that targets the just-closed session."""
+    predictions = repository.get_by_target_date(target_date)
+    return _evaluate_predictions(repository, predictions, target_date)
+
+
+def _evaluate_predictions(repository, predictions, target_date: date) -> int:
     evaluated = 0
 
     for prediction in predictions:
-        if prediction.target_date != target_date:
+        if prediction.target_date != target_date or prediction.actual_change_percent is not None:
             continue
 
         data = fetch_daily_data(prediction.symbol, period="2y")
@@ -37,7 +50,7 @@ def evaluate_predictions_for_date(
 
         actual_change = (current_close - previous_close) / previous_close * 100
         prediction.actual_change_percent = actual_change
-        prediction.successful = actual_change > 5.0
+        prediction.successful = actual_change >= 5.0
         prediction.evaluated_at = datetime.now(timezone.utc)
         repository.add(prediction)
         evaluated += 1

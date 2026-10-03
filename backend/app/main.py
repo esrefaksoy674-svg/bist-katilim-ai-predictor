@@ -17,7 +17,10 @@ from app.core.health import (
 from app.services.market_data import fetch_daily_data
 from app.services.news_ingestion import collect_configured_news
 from app.services.prediction_repository_factory import get_prediction_repository
+from app.services.trading_calendar import next_trading_day
 from app.services.universe import fetch_katilim_universe
+
+MIN_DISPLAY_PROBABILITY_ABOVE_5 = 0.5
 
 app = FastAPI(
     title="BIST Katılım AI Predictor",
@@ -150,13 +153,20 @@ def universe():
 
 @app.get("/predictions")
 def predictions(prediction_date: date | None = None):
-    """Return saved predictions for a date, or the latest available date."""
+    """Return only next-session forecasts with at least 50% >5% probability."""
     try:
         repository = get_prediction_repository()
         target_date = prediction_date
         if target_date is None:
             target_date = repository.get_latest_date() or date.today()
         rows = repository.get_by_date(target_date)
+        next_session = next_trading_day(target_date)
+        rows = [
+            row
+            for row in rows
+            if row.target_date == next_session
+            and row.probability_above_5 >= MIN_DISPLAY_PROBABILITY_ABOVE_5
+        ]
     except Exception as exc:
         raise HTTPException(
             status_code=503,

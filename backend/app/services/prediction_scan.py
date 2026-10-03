@@ -12,9 +12,6 @@ from app.services.technical import calculate_features
 from app.services.trading_calendar import next_trading_day
 
 
-MIN_EXPECTED_CHANGE_PERCENT = 5.0
-
-
 def build_candidate_features(
     symbols: list[str],
     prediction_date: date,
@@ -53,11 +50,11 @@ def run_prediction_scan(
     top_n: int = 10,
     target_date: date | None = None,
 ) -> list[Prediction]:
-    """Scan known-at-close features for next-session >5% candidates.
+    """Rank known-at-close candidates by probability of a next-session +5% gain.
 
     The target date is calendar metadata only. Features use no market data after
-    prediction_date, preventing future-data leakage. Results are retained only
-    when expected_change_percent is at least +5%.
+    prediction_date, preventing future-data leakage. Expected return remains a
+    separate descriptive estimate and is not used as an eligibility filter.
     """
     candidates = build_candidate_features(symbols, prediction_date)
 
@@ -69,8 +66,15 @@ def run_prediction_scan(
         model_version=model_version,
         top_n=len(candidates),
     )
-    results = [r for r in results if r.expected_change_percent >= MIN_EXPECTED_CHANGE_PERCENT]
-    results.sort(key=lambda r: (r.expected_change_percent, r.probability_above_5), reverse=True)
+    results.sort(
+        key=lambda r: (
+            r.probability_above_5,
+            r.expected_change_percent,
+            r.model_confidence,
+            r.pattern_count,
+        ),
+        reverse=True,
+    )
     results = results[:top_n]
 
     resolved_target_date = target_date or next_trading_day(prediction_date)

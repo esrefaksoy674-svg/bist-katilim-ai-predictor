@@ -20,7 +20,7 @@ from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.trading_calendar import next_trading_day
 from app.services.universe import fetch_katilim_universe
 
-MIN_DISPLAY_PROBABILITY_ABOVE_5 = 0.5
+MIN_EXPECTED_CHANGE_PERCENT = 5.0
 
 app = FastAPI(
     title="BIST Katılım AI Predictor",
@@ -153,7 +153,7 @@ def universe():
 
 @app.get("/predictions")
 def predictions(prediction_date: date | None = None):
-    """Return only next-session forecasts with at least 50% >5% probability."""
+    """Return next-session forecasts whose expected gain is at least 5%."""
     try:
         repository = get_prediction_repository()
         target_date = prediction_date
@@ -165,7 +165,7 @@ def predictions(prediction_date: date | None = None):
             row
             for row in rows
             if row.target_date == next_session
-            and row.probability_above_5 >= MIN_DISPLAY_PROBABILITY_ABOVE_5
+            and row.expected_change_percent >= MIN_EXPECTED_CHANGE_PERCENT
         ]
     except Exception as exc:
         raise HTTPException(

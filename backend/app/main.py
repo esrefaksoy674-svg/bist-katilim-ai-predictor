@@ -150,10 +150,12 @@ def universe():
 
 @app.get("/predictions")
 def predictions(prediction_date: date | None = None):
-    """Kalıcı tahmin kayıtlarını tarih bazında döndürür."""
-    target_date = prediction_date or date.today()
+    """Return saved predictions for a date, or the latest available date."""
     try:
         repository = get_prediction_repository()
+        target_date = prediction_date
+        if target_date is None:
+            target_date = repository.get_latest_date() or date.today()
         rows = repository.get_by_date(target_date)
     except Exception as exc:
         raise HTTPException(

@@ -132,3 +132,53 @@ def test_news_endpoint_returns_configured_ingestion_result(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["items"][0]["symbol"] == "THYAO"
+
+
+def test_predictions_endpoint_keeps_high_probability_candidate_below_five_mean(monkeypatch):
+    from datetime import date
+    from types import SimpleNamespace
+
+    rows = [
+        SimpleNamespace(
+            target_date=date(2026, 10, 5),
+            expected_change_percent=4.2,
+            probability_above_5=0.91,
+            symbol="THYAO",
+            model_confidence=0.8,
+            pattern_count=12,
+            explanation={},
+            model_version="v1",
+            actual_change_percent=None,
+            successful=None,
+            evaluated_at=None,
+        ),
+        SimpleNamespace(
+            target_date=date(2026, 10, 5),
+            expected_change_percent=6.0,
+            probability_above_5=0.72,
+            symbol="ASELS",
+            model_confidence=0.8,
+            pattern_count=10,
+            explanation={},
+            model_version="v1",
+            actual_change_percent=None,
+            successful=None,
+            evaluated_at=None,
+        ),
+    ]
+    monkeypatch.setattr(
+        "app.main.get_prediction_repository",
+        lambda: type("Repository", (), {"get_by_date": lambda self, value: rows})(),
+    )
+    monkeypatch.setattr(
+        "app.main.next_trading_day",
+        lambda value: date(2026, 10, 5),
+    )
+
+    response = client.get("/predictions?prediction_date=2026-10-02")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 2
+    assert body["predictions"][0]["expected_change_percent"] == 4.2
+    assert body["predictions"][0]["probability_above_5"] == 0.91

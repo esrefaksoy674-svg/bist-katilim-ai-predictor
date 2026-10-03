@@ -14,9 +14,9 @@ def events_to_dataset(
     feature_names: list[str] | None = None,
     cutoff_date: date | None = None,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """Pozitif öğrenme olaylarını >%5 hedef sınıfı olarak hazırlar.
+    """Pozitif öğrenme olaylarını %5 veya üzeri hedef sınıfı olarak hazırlar.
 
-    %5.00 veya altındaki gerçek sonuçlar pozitif sınıf değildir.
+    %5.00 ve üzerindeki gerçek sonuçlar pozitif sınıftır.
     Gerçek değişim yüzdesi ayrıca korunarak sonraki regresyon katmanında
     kullanılabilir.
     """
@@ -47,7 +47,7 @@ def events_to_dataset(
 
     features = pd.DataFrame(rows, index=pd.DatetimeIndex(dates))
     targets = pd.Series(
-        [int(event.rise_percent > LEARNING_THRESHOLD_PERCENT) for event in filtered],
+        [int(event.rise_percent >= LEARNING_THRESHOLD_PERCENT) for event in filtered],
         index=features.index,
         dtype=int,
         name="target",
@@ -57,7 +57,7 @@ def events_to_dataset(
 
 def build_target(change_percent: float) -> int:
     """Sonraki işlem gününün %5 üzeri hedefini üretir."""
-    return int(change_percent > LEARNING_THRESHOLD_PERCENT)
+    return int(change_percent >= LEARNING_THRESHOLD_PERCENT)
 
 
 def build_regression_target(change_percent: float) -> float:

@@ -12,7 +12,7 @@ from app.services.technical import calculate_features
 from app.services.trading_calendar import next_trading_day
 
 
-MIN_PROBABILITY_ABOVE_5 = 0.5
+MIN_EXPECTED_CHANGE_PERCENT = 5.0
 
 
 def build_candidate_features(
@@ -57,7 +57,7 @@ def run_prediction_scan(
 
     The target date is calendar metadata only. Features use no market data after
     prediction_date, preventing future-data leakage. Results are retained only
-    when the model assigns at least a 50% probability to the >5% class.
+    when expected_change_percent is at least +5%.
     """
     candidates = build_candidate_features(symbols, prediction_date)
 
@@ -67,17 +67,17 @@ def run_prediction_scan(
         history=history,
         prediction_date=prediction_date,
         model_version=model_version,
-        top_n=top_n,
+        top_n=len(candidates),
     )
+    results = [r for r in results if r.expected_change_percent >= MIN_EXPECTED_CHANGE_PERCENT]
+    results.sort(key=lambda r: (r.expected_change_percent, r.probability_above_5), reverse=True)
+    results = results[:top_n]
 
     resolved_target_date = target_date or next_trading_day(prediction_date)
     now = datetime.now(timezone.utc)
     predictions = []
 
     for result in results:
-        if result.probability_above_5 < MIN_PROBABILITY_ABOVE_5:
-            continue
-
         prediction = Prediction(
             symbol=result.symbol,
             prediction_date=result.prediction_date,

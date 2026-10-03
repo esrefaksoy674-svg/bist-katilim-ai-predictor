@@ -31,8 +31,8 @@ def run_daily_prediction(
 
     Evren verilmezse güncel Katılım evreni kaynaktan alınır.
     Yalnızca ACTIVE model kullanılabilir; SHADOW modelle tahmin yapılmaz.
-    target_date verilmezse değerlendirme tarihi ayrıca çözümlenmek üzere
-    prediction_date kullanılır; gelecekteki piyasa verisi taranmaz.
+    target_date verilmezse XIST takvimindeki sonraki işlem günü kullanılır.
+    Piyasa özellikleri yalnızca prediction_date ve öncesinden oluşturulur.
     """
     active = registry.active()
     if active is None:

@@ -35,10 +35,13 @@ def test_daily_scan_builds_history_and_runs_prediction(monkeypatch):
     assert result["learning"] == {"created": 2}
     assert result["predictions"] == "PREDICTIONS"
     assert result["news"]["persisted_count"] == 2
+    assert result["trading_date"] == "2026-10-02"
+    assert result["target_date"] == "2026-10-05"
     assert calls["history_kwargs"]["prediction_date"] == date(2026, 10, 2)
     assert calls["prediction_kwargs"]["history"] == "HISTORY"
     assert calls["prediction_kwargs"]["symbols"] == ["AAA", "BBB"]
     assert calls["prediction_kwargs"]["top_n"] == 10
+    assert calls["prediction_kwargs"]["target_date"] == date(2026, 10, 5)
 
 
 def test_daily_scan_can_skip_learning(monkeypatch):

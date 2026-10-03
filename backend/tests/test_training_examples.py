@@ -29,9 +29,10 @@ def test_examples_use_next_trading_day_as_target():
     assert last["target"] == 0
 
 
-def test_strict_five_percent_threshold_is_applied():
-    data = make_data(last_close=105.01)
+def test_five_percent_threshold_is_inclusive():
+    data = make_data(last_close=105.0)
     result = build_labeled_examples(data, "THYAO")
+    assert result.iloc[-1]["actual_change_percent"] == 5.0
     assert result.iloc[-1]["target"] == 1
 
 

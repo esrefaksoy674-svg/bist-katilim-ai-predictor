@@ -14,7 +14,7 @@ def evaluate_predictions_for_date(
     """
     Hedef işlem günü kapandıktan sonra tahminleri gerçekleşen değişimle eşleştirir.
 
-    Başarı ölçütü modelin hedefiyle aynıdır: gerçekleşen değişim > %5.
+    Başarı ölçütü modelin hedefiyle aynıdır: gerçekleşen değişim >= %5.
     """
     predictions = repository.get_by_date(prediction_date)
     return _evaluate_predictions(repository, predictions, target_date)
@@ -24,21 +24,28 @@ def evaluate_predictions_for_target_date(
     repository: PredictionRepository,
     target_date: date,
 ) -> int:
-    """Evaluate every stored prediction that targets the just-closed session."""
-    predictions = repository.get_by_target_date(target_date)
+    """Evaluate unresolved predictions whose target sessions have closed."""
+    if hasattr(repository, "get_pending_through_date"):
+        predictions = repository.get_pending_through_date(target_date)
+    else:
+        predictions = repository.get_by_target_date(target_date)
     return _evaluate_predictions(repository, predictions, target_date)
 
 
-def _evaluate_predictions(repository, predictions, target_date: date) -> int:
+def _evaluate_predictions(repository, predictions, through_date: date) -> int:
     evaluated = 0
 
     for prediction in predictions:
-        if prediction.target_date != target_date or prediction.actual_change_percent is not None:
+        prediction_target_date = prediction.target_date
+        if (
+            prediction_target_date > through_date
+            or prediction.actual_change_percent is not None
+        ):
             continue
 
         data = fetch_daily_data(prediction.symbol, period="2y")
-        rows = data[data.index.date == target_date]
-        previous_rows = data[data.index.date < target_date]
+        rows = data[data.index.date == prediction_target_date]
+        previous_rows = data[data.index.date < prediction_target_date]
 
         if rows.empty or previous_rows.empty:
             continue

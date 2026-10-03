@@ -1,4 +1,5 @@
 from datetime import date
+from types import SimpleNamespace
 
 import pandas as pd
 
@@ -43,20 +44,16 @@ def test_prediction_scan_does_not_read_future_rows_for_target_date(monkeypatch):
         prediction_scan,
         "build_predictions",
         lambda **kwargs: [
-            type(
-                "Result",
-                (),
-                {
-                    "symbol": "THYAO",
-                    "prediction_date": date(2026, 9, 28),
-                    "probability_above_5": 0.7,
-                    "expected_change_percent": 6.0,
-                    "model_confidence": 0.8,
-                    "pattern_count": 5,
-                    "explanation": {},
-                    "model_version": "v1",
-                },
-            )()
+            SimpleNamespace(
+                symbol="THYAO",
+                prediction_date=date(2026, 9, 28),
+                probability_above_5=0.7,
+                expected_change_percent=6.0,
+                model_confidence=0.8,
+                pattern_count=5,
+                explanation={},
+                model_version="v1",
+            )
         ],
     )
 
@@ -69,7 +66,7 @@ def test_prediction_scan_does_not_read_future_rows_for_target_date(monkeypatch):
     )
 
     assert len(predictions) == 1
-    assert predictions[0].target_date == date(2026, 9, 28)
+    assert predictions[0].target_date == date(2026, 9, 29)
 
 
 def test_prediction_scan_accepts_explicit_target_date(monkeypatch):
@@ -99,20 +96,16 @@ def test_prediction_scan_accepts_explicit_target_date(monkeypatch):
         prediction_scan,
         "build_predictions",
         lambda **kwargs: [
-            type(
-                "Result",
-                (),
-                {
-                    "symbol": "THYAO",
-                    "prediction_date": date(2026, 9, 28),
-                    "probability_above_5": 0.7,
-                    "expected_change_percent": 6.0,
-                    "model_confidence": 0.8,
-                    "pattern_count": 5,
-                    "explanation": {},
-                    "model_version": "v1",
-                },
-            )()
+            SimpleNamespace(
+                symbol="THYAO",
+                prediction_date=date(2026, 9, 28),
+                probability_above_5=0.7,
+                expected_change_percent=6.0,
+                model_confidence=0.8,
+                pattern_count=5,
+                explanation={},
+                model_version="v1",
+            )
         ],
     )
 
@@ -126,3 +119,43 @@ def test_prediction_scan_accepts_explicit_target_date(monkeypatch):
     )
 
     assert predictions[0].target_date == date(2026, 9, 29)
+
+
+def test_prediction_scan_filters_probabilities_below_fifty_percent(monkeypatch):
+    monkeypatch.setattr(
+        prediction_scan,
+        "build_candidate_features",
+        lambda symbols, prediction_date: pd.DataFrame({"symbol": symbols}),
+    )
+    monkeypatch.setattr(
+        prediction_scan,
+        "build_predictions",
+        lambda **kwargs: [
+            SimpleNamespace(
+                symbol=symbol,
+                prediction_date=date(2026, 10, 2),
+                probability_above_5=probability,
+                expected_change_percent=6.1,
+                model_confidence=0.8,
+                pattern_count=5,
+                explanation={},
+                model_version="v1",
+            )
+            for symbol, probability in [("LOW", 0.49), ("EDGE", 0.5), ("HIGH", 0.76)]
+        ],
+    )
+    persisted = []
+
+    predictions = prediction_scan.run_prediction_scan(
+        symbols=["LOW", "EDGE", "HIGH"],
+        prediction_date=date(2026, 10, 2),
+        target_date=date(2026, 10, 5),
+        trained_model=DummyModel(),
+        model_version="v1",
+        history=pd.DataFrame(),
+        prediction_repository=SimpleNamespace(add=persisted.append),
+    )
+
+    assert [prediction.symbol for prediction in predictions] == ["EDGE", "HIGH"]
+    assert [prediction.symbol for prediction in persisted] == ["EDGE", "HIGH"]
+    assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)

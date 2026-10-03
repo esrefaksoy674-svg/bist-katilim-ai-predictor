@@ -22,7 +22,7 @@ def test_dashboard_serves_prediction_panel():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "BIST Katılım Tahminleri" in response.text
-    assert 'fetch("/predictions?"' in response.text
+    assert 'fetch("/predictions" + query' in response.text
 
 
 def test_root():

@@ -157,5 +157,5 @@ def test_prediction_scan_filters_expected_gains_below_five_percent(monkeypatch):
     )
 
     assert [prediction.symbol for prediction in predictions] == ["HIGH", "EDGE"]
-    assert [prediction.symbol for prediction in persisted] == ["EDGE", "HIGH"]
+    assert [prediction.symbol for prediction in persisted] == ["HIGH", "EDGE"]
     assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)

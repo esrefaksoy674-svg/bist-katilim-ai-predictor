@@ -2,6 +2,12 @@
 
 BIST Katılım AI Predictor backend service.
 
+## Phone app and automatic outcome tracking
+
+The dashboard is an installable Progressive Web App for Android and iPhone. Open the dashboard in the phone browser and use **Add to Home Screen** (Safari: Share → Add to Home Screen; Chrome: menu → Install app). It can show the last cached dashboard while offline; fresh prices and results need a connection.
+
+The scheduled end-of-day scan records the previous session's realized close-to-close outcome for every saved forecast targeting that session. The dashboard's hit rate counts only evaluated forecasts and treats an actual return of **+5.00% or more** as successful. The scheduled training job runs afterward and refreshes the model from the daily historical BIST dataset. It does not trade or place orders.
+
 ## End-of-day KAP and news collection
 
 The existing daily scan runs after the market close. It queries the public KAP search page once per Katılım ticker, at a throttled pace, keeps only disclosures published on the scan date, and stores their headline metadata in Supabase. Per-ticker search results are cached for 15 minutes. The daily collection is capped at 100 symbols and 10 results per symbol.

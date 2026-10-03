@@ -43,6 +43,31 @@ def dashboard():
     return FileResponse(dashboard_file, media_type="text/html; charset=utf-8")
 
 
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def pwa_manifest():
+    return FileResponse(
+        Path(__file__).parent / "static" / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+
+@app.get("/app-icon.svg", include_in_schema=False)
+def pwa_icon():
+    return FileResponse(
+        Path(__file__).parent / "static" / "app-icon.svg",
+        media_type="image/svg+xml",
+    )
+
+
+@app.get("/service-worker.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(
+        Path(__file__).parent / "static" / "service-worker.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
 @app.get("/health")
 def health():
     return get_health_status()
@@ -146,6 +171,57 @@ def universe():
         "trading_date": date.today().isoformat(),
         "count": len(symbols),
         "symbols": symbols,
+    }
+
+
+@app.get("/performance")
+def performance(limit: int = 100):
+    """Summarize recorded forecast outcomes and return recent tracking history."""
+    try:
+        rows = get_prediction_repository().get_recent(limit=limit)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Tahmin sonuçları alınamadı: {type(exc).__name__}",
+        ) from exc
+
+    evaluated = [row for row in rows if row.actual_change_percent is not None]
+    successful_count = sum(
+        1 for row in evaluated if row.actual_change_percent >= 5.0
+    )
+    average_actual_change = (
+        sum(row.actual_change_percent for row in evaluated) / len(evaluated)
+        if evaluated else None
+    )
+    return {
+        "tracked_count": len(rows),
+        "evaluated_count": len(evaluated),
+        "pending_count": len(rows) - len(evaluated),
+        "successful_count": successful_count,
+        "hit_rate_percent": (
+            round(successful_count / len(evaluated) * 100, 2)
+            if evaluated else None
+        ),
+        "average_actual_change_percent": (
+            round(average_actual_change, 2)
+            if average_actual_change is not None else None
+        ),
+        "predictions": [
+            {
+                "symbol": row.symbol,
+                "prediction_date": row.prediction_date.isoformat(),
+                "target_date": row.target_date.isoformat(),
+                "probability_above_5": row.probability_above_5,
+                "expected_change_percent": row.expected_change_percent,
+                "actual_change_percent": row.actual_change_percent,
+                "successful": (
+                    row.actual_change_percent >= 5.0
+                    if row.actual_change_percent is not None else None
+                ),
+                "model_version": row.model_version,
+            }
+            for row in rows
+        ],
     }
 
 

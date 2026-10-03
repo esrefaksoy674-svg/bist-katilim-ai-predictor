@@ -51,7 +51,7 @@ def test_predictions_api_defaults_to_latest_available_date(monkeypatch):
     assert response.json()["predictions"] == []
 
 
-def test_predictions_api_shows_only_next_session_rows_with_five_percent_expected_gain(monkeypatch):
+def test_predictions_api_ranks_next_session_rows_by_realized_gain_probability(monkeypatch):
     class MixedRepository:
         def get_by_date(self, prediction_date):
             assert prediction_date == date(2026, 10, 2)
@@ -120,8 +120,10 @@ def test_predictions_api_shows_only_next_session_rows_with_five_percent_expected
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["count"] == 2
-    assert [row["symbol"] for row in payload["predictions"]] == ["EDGE", "HIGH"]
+    assert payload["count"] == 3
+    assert [row["symbol"] for row in payload["predictions"]] == ["LOW", "HIGH", "EDGE"]
+    assert payload["predictions"][0]["expected_change_percent"] == 4.99
+    assert payload["predictions"][0]["probability_above_5"] == 0.99
     assert {row["target_date"] for row in payload["predictions"]} == {"2026-10-05"}
 
 

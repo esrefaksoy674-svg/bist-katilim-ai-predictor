@@ -1,5 +1,5 @@
 const CACHE_NAME = "bist-katilim-v1";
-const APP_SHELL = ["/dashboard", "/manifest.webmanifest", "/app-icon.svg"];
+const APP_SHELL = ["/dashboard", "/manifest.webmanifest", "/app-icon.svg", "/mobile.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));

@@ -13,6 +13,9 @@ class PredictionRepository:
     def get_by_date(self, prediction_date: date) -> list[Prediction]:
         raise NotImplementedError
 
+    def get_latest_date(self) -> date | None:
+        raise NotImplementedError
+
 
 class SupabasePredictionRepository(PredictionRepository):
     table_name = "predictions"
@@ -70,6 +73,19 @@ class SupabasePredictionRepository(PredictionRepository):
             self._to_row(prediction),
             on_conflict="symbol,prediction_date,model_version",
         ).execute()
+
+    def get_latest_date(self) -> date | None:
+        response = (
+            self.client.table(self.table_name)
+            .select("prediction_date")
+            .order("prediction_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return None
+        return date.fromisoformat(str(rows[0]["prediction_date"]))
 
     def get_by_date(self, prediction_date: date) -> list[Prediction]:
         response = (

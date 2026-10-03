@@ -25,7 +25,7 @@
 <body>
 <main>
   <header class="top">
-    <div class="brand"><div class="mark" aria-hidden="true">B</div><div><h1>BIST Katılım Tahminleri</h1><p class="sub">Gün sonu tahmini · listede beklenen getirisi en az +%5 olanlar</p></div></div>
+    <div class="brand"><div class="mark" aria-hidden="true">B</div><div><h1>BIST Katılım Tahminleri</h1><p class="sub">Gün sonu tahmini · gerçekleşen +%5 olasılığına göre sıralı</p></div></div>
   </header>
   <section class="toolbar" aria-label="Tahmin filtreleri">
     <label for="prediction-date">Tahmin tarihi</label>
@@ -39,7 +39,7 @@
     <article class="stat"><span class="muted">Ortalama model güveni</span><strong id="confidence">—</strong></article>
   </section>
   <section id="results" class="table-wrap" aria-label="Tahmin listesi"></section>
-  <footer>Beklenen getiri ile %5 üzeri olasılığı farklı model ölçüleridir. Liste, beklenen getirisi en az +%5 olanları gösterir. Bu bir tahmindir; gerçekleşen sonuç farklı olabilir ve getiri garantisi değildir. Bu panel alım-satım işlemi yapmaz.</footer>
+  <footer>Liste, sonraki işlem gününde gerçekleşen +%5 ve üzeri kapanış getirisi olasılığına göre sıralanır. Beklenen getiri ayrı bir ölçüdür; olasılık garanti değildir. Bu panel alım-satım işlemi yapmaz.</footer>
 </main>
 <script>
 (() => {
@@ -60,7 +60,7 @@
     if (!rows.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "Bu tarihte beklenen getirisi +%5 veya üzeri tahmin bulunamadı.";
+      empty.textContent = "Bu tarih için tahmin kaydı bulunamadı.";
       results.append(empty);
       return;
     }

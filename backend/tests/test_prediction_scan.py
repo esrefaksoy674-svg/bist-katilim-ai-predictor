@@ -121,7 +121,7 @@ def test_prediction_scan_accepts_explicit_target_date(monkeypatch):
     assert predictions[0].target_date == date(2026, 9, 29)
 
 
-def test_prediction_scan_filters_probabilities_below_fifty_percent(monkeypatch):
+def test_prediction_scan_filters_expected_gains_below_five_percent(monkeypatch):
     monkeypatch.setattr(
         prediction_scan,
         "build_candidate_features",
@@ -135,19 +135,19 @@ def test_prediction_scan_filters_probabilities_below_fifty_percent(monkeypatch):
                 symbol=symbol,
                 prediction_date=date(2026, 10, 2),
                 probability_above_5=probability,
-                expected_change_percent=6.1,
+                expected_change_percent=expected,
                 model_confidence=0.8,
                 pattern_count=5,
                 explanation={},
                 model_version="v1",
             )
-            for symbol, probability in [("LOW", 0.49), ("EDGE", 0.5), ("HIGH", 0.76)]
+            for symbol, probability, expected in [("LOW_EXPECTATION", 0.95, 4.99), ("EDGE", 0.20, 5.0), ("HIGH", 0.76, 6.1)]
         ],
     )
     persisted = []
 
     predictions = prediction_scan.run_prediction_scan(
-        symbols=["LOW", "EDGE", "HIGH"],
+        symbols=["LOW_EXPECTATION", "EDGE", "HIGH"],
         prediction_date=date(2026, 10, 2),
         target_date=date(2026, 10, 5),
         trained_model=DummyModel(),
@@ -156,6 +156,6 @@ def test_prediction_scan_filters_probabilities_below_fifty_percent(monkeypatch):
         prediction_repository=SimpleNamespace(add=persisted.append),
     )
 
-    assert [prediction.symbol for prediction in predictions] == ["EDGE", "HIGH"]
+    assert [prediction.symbol for prediction in predictions] == ["HIGH", "EDGE"]
     assert [prediction.symbol for prediction in persisted] == ["EDGE", "HIGH"]
     assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)

@@ -19,6 +19,9 @@ class PredictionRepository:
     def get_by_target_date(self, target_date: date) -> list[Prediction]:
         raise NotImplementedError
 
+    def get_pending_through_date(self, target_date: date) -> list[Prediction]:
+        raise NotImplementedError
+
     def get_recent(self, limit: int = 100) -> list[Prediction]:
         raise NotImplementedError
 
@@ -103,12 +106,23 @@ class SupabasePredictionRepository(PredictionRepository):
         )
         return [self._from_row(row) for row in (response.data or [])]
 
-
     def get_by_target_date(self, target_date: date) -> list[Prediction]:
         response = (
             self.client.table(self.table_name)
             .select("*")
             .eq("target_date", target_date.isoformat())
+            .order("probability_above_5", desc=True)
+            .execute()
+        )
+        return [self._from_row(row) for row in (response.data or [])]
+
+    def get_pending_through_date(self, target_date: date) -> list[Prediction]:
+        response = (
+            self.client.table(self.table_name)
+            .select("*")
+            .lte("target_date", target_date.isoformat())
+            .is_("actual_change_percent", "null")
+            .order("target_date")
             .order("probability_above_5", desc=True)
             .execute()
         )

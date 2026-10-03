@@ -16,6 +16,12 @@ class PredictionRepository:
     def get_latest_date(self) -> date | None:
         raise NotImplementedError
 
+    def get_by_target_date(self, target_date: date) -> list[Prediction]:
+        raise NotImplementedError
+
+    def get_recent(self, limit: int = 100) -> list[Prediction]:
+        raise NotImplementedError
+
 
 class SupabasePredictionRepository(PredictionRepository):
     table_name = "predictions"
@@ -93,6 +99,29 @@ class SupabasePredictionRepository(PredictionRepository):
             .select("*")
             .eq("prediction_date", prediction_date.isoformat())
             .order("probability_above_5", desc=True)
+            .execute()
+        )
+        return [self._from_row(row) for row in (response.data or [])]
+
+
+    def get_by_target_date(self, target_date: date) -> list[Prediction]:
+        response = (
+            self.client.table(self.table_name)
+            .select("*")
+            .eq("target_date", target_date.isoformat())
+            .order("probability_above_5", desc=True)
+            .execute()
+        )
+        return [self._from_row(row) for row in (response.data or [])]
+
+    def get_recent(self, limit: int = 100) -> list[Prediction]:
+        safe_limit = max(1, min(int(limit), 500))
+        response = (
+            self.client.table(self.table_name)
+            .select("*")
+            .order("target_date", desc=True)
+            .order("probability_above_5", desc=True)
+            .limit(safe_limit)
             .execute()
         )
         return [self._from_row(row) for row in (response.data or [])]

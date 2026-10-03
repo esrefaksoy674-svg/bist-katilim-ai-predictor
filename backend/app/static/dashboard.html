@@ -25,7 +25,7 @@
 <body>
 <main>
   <header class="top">
-    <div class="brand"><div class="mark" aria-hidden="true">B</div><div><h1>BIST Katılım Tahminleri</h1><p class="sub">Gün sonu model çıktıları</p></div></div>
+    <div class="brand"><div class="mark" aria-hidden="true">B</div><div><h1>BIST Katılım Tahminleri</h1><p class="sub">Gün sonu tahmini · listede beklenen getirisi en az +%5 olanlar</p></div></div>
   </header>
   <section class="toolbar" aria-label="Tahmin filtreleri">
     <label for="prediction-date">Tahmin tarihi</label>
@@ -35,11 +35,11 @@
   </section>
   <section class="stats" aria-label="Özet">
     <article class="stat"><span class="muted">Kayıt sayısı</span><strong id="count">—</strong></article>
-    <article class="stat"><span class="muted">Ortalama beklenen değişim</span><strong id="average">—</strong></article>
+    <article class="stat"><span class="muted">Ortalama beklenen getiri</span><strong id="average">—</strong></article>
     <article class="stat"><span class="muted">Ortalama model güveni</span><strong id="confidence">—</strong></article>
   </section>
   <section id="results" class="table-wrap" aria-label="Tahmin listesi"></section>
-  <footer>Tahminler model çıktısıdır; yatırım tavsiyesi veya getiri garantisi değildir. Bu panel alım-satım işlemi yapmaz.</footer>
+  <footer>Beklenen getiri ile %5 üzeri olasılığı farklı model ölçüleridir. Liste, beklenen getirisi en az +%5 olanları gösterir. Bu bir tahmindir; gerçekleşen sonuç farklı olabilir ve getiri garantisi değildir. Bu panel alım-satım işlemi yapmaz.</footer>
 </main>
 <script>
 (() => {
@@ -60,12 +60,12 @@
     if (!rows.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "Bu tarih için tahmin bulunamadı.";
+      empty.textContent = "Bu tarihte beklenen getirisi +%5 veya üzeri tahmin bulunamadı.";
       results.append(empty);
       return;
     }
     const table = document.createElement("table");
-    table.innerHTML = "<thead><tr><th>Hisse</th><th>Hedef tarih</th><th>%5 üzeri olasılığı</th><th>Beklenen değişim</th><th>Model güveni</th><th>Sonuç</th></tr></thead>";
+    table.innerHTML = "<thead><tr><th>Hisse</th><th>Hedef tarih</th><th>%5 üzeri olasılığı</th><th>Beklenen getiri</th><th>Model güveni</th><th>Sonuç</th></tr></thead>";
     const body = document.createElement("tbody");
     for (const row of rows) {
       const tr = document.createElement("tr");

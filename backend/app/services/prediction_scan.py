@@ -9,6 +9,10 @@ from app.services.market_data import fetch_daily_data
 from app.services.prediction_engine import FEATURE_NAMES, build_predictions
 from app.services.prediction_repository import PredictionRepository
 from app.services.technical import calculate_features
+from app.services.trading_calendar import next_trading_day
+
+
+MIN_PROBABILITY_ABOVE_5 = 0.5
 
 
 def build_candidate_features(
@@ -49,11 +53,11 @@ def run_prediction_scan(
     top_n: int = 10,
     target_date: date | None = None,
 ) -> list[Prediction]:
-    """Aktif modelle adayları tarar.
+    """Scan known-at-close features for next-session >5% candidates.
 
-    target_date dışarıdan verilirse yalnızca bilinen takvim bilgisi olarak
-    kullanılır. Piyasa verisinden gelecekteki işlem gününü okumaz; böylece
-    geçmiş tarihli tahminlerde gelecek veri sızıntısı oluşmaz.
+    The target date is calendar metadata only. Features use no market data after
+    prediction_date, preventing future-data leakage. Results are retained only
+    when the model assigns at least a 50% probability to the >5% class.
     """
     candidates = build_candidate_features(symbols, prediction_date)
 
@@ -66,11 +70,14 @@ def run_prediction_scan(
         top_n=top_n,
     )
 
-    resolved_target_date = target_date or prediction_date
+    resolved_target_date = target_date or next_trading_day(prediction_date)
     now = datetime.now(timezone.utc)
     predictions = []
 
     for result in results:
+        if result.probability_above_5 < MIN_PROBABILITY_ABOVE_5:
+            continue
+
         prediction = Prediction(
             symbol=result.symbol,
             prediction_date=result.prediction_date,

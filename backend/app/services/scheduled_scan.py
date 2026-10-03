@@ -4,13 +4,15 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.services.daily_scan import run_daily_scan
+from app.services.trading_calendar import latest_trading_day
 
 MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
 
 
 def run_scheduled_scan() -> dict:
-    """İşlem günü sonrasında günlük öğrenme/tahmin taramasını başlatır."""
-    trading_date = datetime.now(MARKET_TIMEZONE).date()
+    """Run end-of-day learning, next-session predictions, and news collection."""
+    calendar_date = datetime.now(MARKET_TIMEZONE).date()
+    trading_date = latest_trading_day(calendar_date)
     result = run_daily_scan(trading_date=trading_date)
     return {
         "status": "ok",

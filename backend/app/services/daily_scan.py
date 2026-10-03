@@ -8,6 +8,7 @@ from app.services.learning_runner import run_daily_learning
 from app.services.prediction_history import build_prediction_history
 from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.runtime_model import load_active_model
+from app.services.trading_calendar import next_trading_day
 from app.services.universe import fetch_katilim_universe
 
 
@@ -16,10 +17,12 @@ def run_daily_scan(
     learning_enabled: bool = True,
     top_n: int = 10,
 ):
-    """Run end-of-day learning, prediction, and news collection."""
+    """Run end-of-day learning, next-session predictions, and news collection."""
     symbols = fetch_katilim_universe()
     if not symbols:
         raise RuntimeError("Günlük tarama için Katılım evreni boş.")
+
+    target_date = next_trading_day(trading_date)
 
     learning_result = None
     if learning_enabled:
@@ -37,6 +40,7 @@ def run_daily_scan(
 
     prediction_result = run_daily_prediction(
         prediction_date=trading_date,
+        target_date=target_date,
         registry=registry,
         history=history,
         prediction_repository=prediction_repository,
@@ -62,6 +66,7 @@ def run_daily_scan(
 
     return {
         "trading_date": trading_date.isoformat(),
+        "target_date": target_date.isoformat(),
         "universe_count": len(symbols),
         "learning": learning_result,
         "predictions": prediction_result,

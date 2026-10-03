@@ -51,6 +51,14 @@ def pwa_manifest():
     )
 
 
+@app.get("/mobile.js", include_in_schema=False)
+def mobile_client():
+    return FileResponse(
+        Path(__file__).parent / "static" / "mobile.js",
+        media_type="application/javascript",
+    )
+
+
 @app.get("/app-icon.svg", include_in_schema=False)
 def pwa_icon():
     return FileResponse(

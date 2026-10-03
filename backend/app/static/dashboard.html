@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/app-icon.svg">
   <title>BIST Katılım | Tahmin Paneli</title>
   <style>
     :root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#263750;--muted:#9aacc4;--text:#edf4ff;--green:#38d39f;--red:#ff7c86;--blue:#7cb9ff}
@@ -36,10 +41,10 @@
   <section class="stats" aria-label="Özet">
     <article class="stat"><span class="muted">Kayıt sayısı</span><strong id="count">—</strong></article>
     <article class="stat"><span class="muted">Ortalama beklenen getiri</span><strong id="average">—</strong></article>
-    <article class="stat"><span class="muted">Ortalama model güveni</span><strong id="confidence">—</strong></article>
+    <article class="stat"><span class="muted">Model doğrulama başarısı</span><strong id="confidence">—</strong></article>
   </section>
   <section id="results" class="table-wrap" aria-label="Tahmin listesi"></section>
-  <footer>Liste, sonraki işlem gününde gerçekleşen +%5 ve üzeri kapanış getirisi olasılığına göre sıralanır. Beklenen getiri ayrı bir ölçüdür; olasılık garanti değildir. Bu panel alım-satım işlemi yapmaz.</footer>
+  <footer>Telefonunda uygulama gibi kullanmak için tarayıcı menüsünden “Ana ekrana ekle” seçeneğini kullan. Günlük sonuçlar takip edilir ve sonraki model eğitimlerine katılır. Olasılık garanti değildir; bu panel alım-satım işlemi yapmaz.</footer>
 </main>
 <script>
 (() => {
@@ -121,5 +126,6 @@
   load();
 })();
 </script>
+<script src="/mobile.js" defer></script>
 </body>
 </html>

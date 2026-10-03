@@ -121,7 +121,7 @@ def test_prediction_scan_accepts_explicit_target_date(monkeypatch):
     assert predictions[0].target_date == date(2026, 9, 29)
 
 
-def test_prediction_scan_filters_expected_gains_below_five_percent(monkeypatch):
+def test_prediction_scan_ranks_by_realized_gain_probability_without_mean_filter(monkeypatch):
     monkeypatch.setattr(
         prediction_scan,
         "build_candidate_features",
@@ -156,6 +156,8 @@ def test_prediction_scan_filters_expected_gains_below_five_percent(monkeypatch):
         prediction_repository=SimpleNamespace(add=persisted.append),
     )
 
-    assert [prediction.symbol for prediction in predictions] == ["HIGH", "EDGE"]
-    assert [prediction.symbol for prediction in persisted] == ["HIGH", "EDGE"]
+    assert [prediction.symbol for prediction in predictions] == ["LOW_EXPECTATION", "HIGH", "EDGE"]
+    assert [prediction.symbol for prediction in persisted] == ["LOW_EXPECTATION", "HIGH", "EDGE"]
+    assert predictions[0].expected_change_percent == 4.99
+    assert predictions[0].probability_above_5 == 0.95
     assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)

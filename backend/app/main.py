@@ -164,6 +164,15 @@ def predictions(prediction_date: date | None = None):
             for row in rows
             if row.target_date == next_session
         ]
+        rows.sort(
+            key=lambda row: (
+                row.probability_above_5,
+                row.expected_change_percent,
+                row.model_confidence,
+                row.pattern_count,
+            ),
+            reverse=True,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=503,

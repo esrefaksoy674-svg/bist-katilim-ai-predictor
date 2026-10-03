@@ -25,9 +25,13 @@ def run_daily_scan(
 
     target_date = next_trading_day(trading_date)
     prediction_repository = get_prediction_repository()
-    evaluated_prediction_count = evaluate_predictions_for_target_date(
-        repository=prediction_repository,
-        target_date=trading_date,
+    evaluated_prediction_count = (
+        evaluate_predictions_for_target_date(
+            repository=prediction_repository,
+            target_date=trading_date,
+        )
+        if hasattr(prediction_repository, "get_by_target_date")
+        else 0
     )
 
     learning_result = None

@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     news_rss_urls: str = DEFAULT_NEWS_RSS_URLS
     kap_rss_urls: str = ""
     news_fetch_timeout_seconds: int = 10
+    # Optional comma-separated SYMBOL:SECTOR pairs, e.g. AAA:ENERGY,BBB:BANK
+    sector_map: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

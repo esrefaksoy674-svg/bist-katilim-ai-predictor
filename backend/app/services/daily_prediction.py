@@ -25,6 +25,10 @@ def run_daily_prediction(
     symbols: list[str] | None = None,
     top_n: int = 10,
     target_date: date | None = None,
+    context_snapshot_repository=None,
+    news_features_by_symbol: dict[str, dict] | None = None,
+    sector_by_symbol: dict[str, str] | None = None,
+    context_snapshot_status: dict | None = None,
 ) -> DailyPredictionRun:
     """
     Günlük tahmin akışını tek noktadan çalıştırır.
@@ -56,6 +60,10 @@ def run_daily_prediction(
         prediction_repository=prediction_repository,
         top_n=top_n,
         target_date=target_date,
+        context_snapshot_repository=context_snapshot_repository,
+        news_features_by_symbol=news_features_by_symbol,
+        sector_by_symbol=sector_by_symbol,
+        context_snapshot_status=context_snapshot_status,
     )
 
     return DailyPredictionRun(

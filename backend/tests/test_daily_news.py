@@ -5,7 +5,7 @@ from app.services import daily_news
 
 def test_daily_news_collection_filters_for_date_and_persists(monkeypatch):
     captured = {}
-    items = [{"symbol": "THYAO", "content_hash": "h1"}]
+    items = [{"symbol": "THYAO", "content_hash": "h1", "source": "kap_public"}]
     monkeypatch.setattr(
         daily_news,
         "collect_configured_news",
@@ -38,3 +38,9 @@ def test_daily_news_collection_filters_for_date_and_persists(monkeypatch):
     assert captured["published_on"] == date(2026, 10, 1)
     assert captured["saved_items"] == items
     assert result["persisted_count"] == 1
+    assert result["features_by_symbol"]["THYAO"] == {
+        "article_count": 1,
+        "source_count": 1,
+        "kap_article_count": 1,
+        "rss_article_count": 0,
+    }

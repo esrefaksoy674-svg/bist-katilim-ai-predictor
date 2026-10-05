@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.services.context_snapshots import aggregate_news_features
 from app.services.news_ingestion import collect_configured_news
 from app.services.news_repository_factory import get_news_repository
 
@@ -21,5 +22,6 @@ def run_daily_news_collection(
         "reachable_sources": result["reachable_sources"],
         "item_count": result["item_count"],
         "persisted_count": persisted,
+        "features_by_symbol": aggregate_news_features(result["items"]),
         "sources": result["sources"],
     }

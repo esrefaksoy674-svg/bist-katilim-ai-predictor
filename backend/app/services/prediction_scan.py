@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 import pandas as pd
 
 from app.models.prediction import Prediction
+from app.services.context_snapshots import build_context_snapshots
 from app.services.market_data import fetch_daily_data
 from app.services.prediction_engine import FEATURE_NAMES, build_predictions
 from app.services.prediction_repository import PredictionRepository
@@ -49,14 +50,37 @@ def run_prediction_scan(
     prediction_repository: PredictionRepository | None = None,
     top_n: int = 10,
     target_date: date | None = None,
+    context_snapshot_repository=None,
+    news_features_by_symbol: dict[str, dict] | None = None,
+    sector_by_symbol: dict[str, str] | None = None,
+    context_snapshot_status: dict | None = None,
 ) -> list[Prediction]:
     """Rank known-at-close candidates by probability of a next-session +5% gain.
 
     The target date is calendar metadata only. Features use no market data after
     prediction_date, preventing future-data leakage. Expected return remains a
     separate descriptive estimate and is not used as an eligibility filter.
+    Context snapshots are an independent, best-effort side effect; their failure
+    never interrupts the established prediction path.
     """
     candidates = build_candidate_features(symbols, prediction_date)
+
+    if context_snapshot_repository is not None:
+        try:
+            snapshots = build_context_snapshots(
+                candidates,
+                prediction_date,
+                news_features_by_symbol=news_features_by_symbol,
+                sector_by_symbol=sector_by_symbol,
+            )
+            stored = context_snapshot_repository.save_many(snapshots)
+            if context_snapshot_status is not None:
+                context_snapshot_status.update({"status": "saved", "count": stored})
+        except Exception as exc:
+            if context_snapshot_status is not None:
+                context_snapshot_status.update(
+                    {"status": "unavailable", "error": type(exc).__name__}
+                )
 
     results = build_predictions(
         trained_model=trained_model,

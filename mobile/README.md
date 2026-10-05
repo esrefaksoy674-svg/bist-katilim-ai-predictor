@@ -1,14 +1,22 @@
-# BIST Katılım AI — Expo mobile preview
+# BIST Katılım AI — Telefon uygulaması
 
-This is the first native iOS/Android preview of the existing BIST Katılım prediction dashboard. It reads the same public API and does not contain database keys or other service credentials.
+Uygulama tahminleri ve gerçekleşen sonuçları gösterir. Telefonda tek başına çalışır; bilgisayarda Expo Go veya geliştirme sunucusu açık kalmasına gerek yoktur. Güncel veriyi almak için internet bağlantısı gerekir. API adresi uygulama paketinde tanımlıdır ve veritabanı anahtarı içermez.
 
-## Run on a phone with Expo Go
+## Android'e yükleme
 
-1. Install the current **Expo Go** app from the official app store on the phone.
-2. From this directory, run `npm install`.
-3. Run `npx expo start --tunnel`.
-4. Scan the displayed QR code with Expo Go on Android. On iPhone, scan it with the Camera app and open it in Expo Go.
+1. Bu depodaki **Actions → Build installable Android app** akışının son başarılı çalışmasını aç.
+2. **Artifacts** bölümünden `bist-katilim-ai-android-apk` dosyasını telefona indir ve ZIP arşivini aç.
+3. `app-debug.apk` dosyasına dokunup Android kurulum ekranındaki adımları uygula. Android, GitHub'dan indirdiğin dosya için tarayıcıya bir defalık “bilinmeyen uygulamaları yükle” izni isteyebilir.
+4. Uygulamayı aç. Tahminler ve sonuç takibi sunucudaki API'den yüklenir.
 
-If the app prompts for an Expo account on iPhone, sign in to Expo Go and the Expo CLI with the same account. See Expo's [device setup](https://docs.expo.dev/get-started/set-up-your-environment/) and [start developing](https://docs.expo.dev/get-started/start-developing/) guides.
+Akış, `main` dalında mobil uygulama değiştiğinde otomatik çalışır; GitHub Actions sayfasından elle de başlatılabilir. Bu, telefona doğrudan kurulabilen Android APK'sıdır; Google Play sürümü değildir. Yeni bir APK farklı CI imzasıyla üretildiğinden, sonraki sürüme geçerken Android eski uygulamayı kaldırmanı isteyebilir.
 
-The app has **Tahminler** and **Sonuç takibi** screens. It uses the current Render API endpoints for predictions and realized results. It is a development preview running inside Expo Go, not yet a signed App Store or Google Play release.
+## iPhone'a ekleme
+
+iPhone'da App Store imzalı yerel sürüm yerine, mevcut web paneli Safari'den ana ekrana eklenebilir. Yayındaki paneli Safari'de açıp **Paylaş → Ana Ekrana Ekle** seç. Ana ekrandan uygulama gibi açılır; güncel tahminleri almak için internet gerekir. iOS için imzalı yerel IPA/TestFlight dağıtımı Apple Developer hesabı ve cihaz imzalama yapılandırması gerektirir.
+
+## Geliştirici önizlemesi
+
+Expo Go yalnızca geliştirme içindir. Geliştirici bilgisayarından `npm install` ve `npx expo start --tunnel` komutlarıyla çalıştırılabilir; telefonda gündelik kullanım için gerekmez.
+
+Uygulama **Tahminler** ve **Sonuç takibi** ekranlarını içerir. Alım-satım yapmaz ve tahminler garanti değildir.

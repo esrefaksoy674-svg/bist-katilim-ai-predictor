@@ -25,7 +25,7 @@ def _make_model():
     return Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("classifier", RandomForestClassifier(
-            n_estimators=100,
+            n_estimators=50,
             random_state=42,
             class_weight="balanced",
             n_jobs=-1,
@@ -165,7 +165,7 @@ def run_context_shadow_evaluation(
     targets.index = target_date_index
 
     distinct_dates = len(target_date_index.normalize().unique())
-    if distinct_dates < 52:
+    if distinct_dates < 181:
         return {
             "status": "collecting_context",
             "snapshot_count": len(snapshots),
@@ -187,9 +187,9 @@ def run_context_shadow_evaluation(
         targets,
         lambda: _FeatureSubsetModel(_make_model, baseline_names),
         lambda: _FeatureSubsetModel(_make_model, candidate_names),
-        initial_train_size=30,
-        test_size=10,
-        step_size=10,
+        initial_train_size=120,
+        test_size=20,
+        step_size=20,
         gap=1,
     )
     return {

@@ -12,7 +12,7 @@ The scheduled end-of-day scan records the previous session's realized close-to-c
 
 The daily scan saves numeric technical, matched-news count, cross-universe momentum, and optional sector-peer summaries to the backend-only `context_snapshots` table. Context collection is best-effort and does not affect the active model's predictions. Set `SECTOR_MAP` as comma-separated `SYMBOL:SECTOR` pairs (for example `AAA:ENERGY,BBB:BANK`) to enable peer summaries.
 
-The weekly **Context Shadow Evaluation** workflow waits for at least 60 distinct snapshot dates and 70% feature coverage before comparing technical-only and context-enriched candidates on shared walk-forward windows. It reports results without promoting a model. Because the context table starts collecting only after migration 006 is installed, historical context will accumulate prospectively; the workflow reports a collecting state until the minimum coverage is reached.
+The weekly **Context Shadow Evaluation** workflow waits for at least 60 distinct snapshot dates and 70% feature coverage before comparing technical-only and context-enriched candidates on shared walk-forward windows. It also requires at least 181 labeled sessions, reports results without promoting a model. Because the context table starts collecting only after migration 006 is installed, historical context will accumulate prospectively; the workflow reports a collecting state until the minimum coverage is reached.
 
 ## End-of-day KAP and news collection
 

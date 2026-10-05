@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.core.config import settings
+from app.services.context_snapshots import parse_sector_map
+from app.services.context_snapshot_repository_factory import get_context_snapshot_repository
 from app.services.daily_news import run_daily_news_collection
 from app.services.prediction_evaluation import evaluate_predictions_for_target_date
 from app.services.daily_prediction import run_daily_prediction
@@ -18,7 +21,7 @@ def run_daily_scan(
     learning_enabled: bool = True,
     top_n: int = 10,
 ):
-    """Run end-of-day learning, next-session predictions, and news collection."""
+    """Run end-of-day learning, news capture, and next-session predictions."""
     symbols = fetch_katilim_universe()
     if not symbols:
         raise RuntimeError("Günlük tarama için Katılım evreni boş.")
@@ -41,21 +44,6 @@ def run_daily_scan(
             signal_date=trading_date,
         )
 
-    registry, _artifact = load_active_model()
-    history = build_prediction_history(
-        symbols=symbols,
-        prediction_date=trading_date,
-    )
-    prediction_result = run_daily_prediction(
-        prediction_date=trading_date,
-        target_date=target_date,
-        registry=registry,
-        history=history,
-        prediction_repository=prediction_repository,
-        symbols=symbols,
-        top_n=top_n,
-    )
-
     try:
         news_result = run_daily_news_collection(
             symbols=symbols,
@@ -69,8 +57,36 @@ def run_daily_scan(
             "reachable_sources": 0,
             "item_count": 0,
             "persisted_count": 0,
+            "features_by_symbol": {},
             "error": type(exc).__name__,
         }
+
+    context_status = {"status": "unavailable", "error": "RepositoryUnavailable"}
+    try:
+        context_repository = get_context_snapshot_repository()
+        context_status = {"status": "pending"}
+    except Exception as exc:
+        context_repository = None
+        context_status = {"status": "unavailable", "error": type(exc).__name__}
+
+    registry, _artifact = load_active_model()
+    history = build_prediction_history(
+        symbols=symbols,
+        prediction_date=trading_date,
+    )
+    prediction_result = run_daily_prediction(
+        prediction_date=trading_date,
+        target_date=target_date,
+        registry=registry,
+        history=history,
+        prediction_repository=prediction_repository,
+        symbols=symbols,
+        top_n=top_n,
+        context_snapshot_repository=context_repository,
+        news_features_by_symbol=news_result.get("features_by_symbol", {}),
+        sector_by_symbol=parse_sector_map(settings.sector_map),
+        context_snapshot_status=context_status,
+    )
 
     return {
         "trading_date": trading_date.isoformat(),
@@ -80,4 +96,5 @@ def run_daily_scan(
         "evaluated_prediction_count": evaluated_prediction_count,
         "predictions": prediction_result,
         "news": news_result,
+        "context_snapshots": context_status,
     }

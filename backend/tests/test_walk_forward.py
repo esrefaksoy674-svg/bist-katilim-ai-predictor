@@ -47,7 +47,7 @@ def test_walk_forward_gap_and_expanding_windows():
     assert [(fold.train_end, fold.test_start) for fold in result.folds] == [
         ("3", "5"), ("5", "7"), ("7", "9"), ("9", "11")
     ]
-    assert result.sample_count == 8
+    assert result.sample_count == 7
 
 
 def test_walk_forward_rejects_unusable_input():

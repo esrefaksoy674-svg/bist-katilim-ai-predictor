@@ -38,12 +38,6 @@ def build_context_snapshots(
         ),
     }
 
-    sector_values: dict[str, list[float]] = {}
-    for symbol, momentum in momenta.items():
-        sector = sectors.get(symbol)
-        if sector and pd.notna(momentum):
-            sector_values.setdefault(sector, []).append(float(momentum))
-
     records = []
     for _, row in working.iterrows():
         symbol = row["symbol"]
@@ -52,7 +46,12 @@ def build_context_snapshots(
             for name, value in row.items()
             if name != "symbol" and pd.notna(value) and pd.api.types.is_number(value)
         }
-        peer_values = sector_values.get(sectors.get(symbol, ""), [])
+        peer_values = [
+            value for peer, value in momenta.items()
+            if peer != symbol
+            and sectors.get(peer) == sectors.get(symbol)
+            and pd.notna(value)
+        ]
         sector_features = {
             "peer_count": len(peer_values),
             "peer_momentum_mean_10d": (

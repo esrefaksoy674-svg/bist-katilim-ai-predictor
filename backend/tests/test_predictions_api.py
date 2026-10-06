@@ -8,6 +8,9 @@ from app.main import app
 
 def test_predictions_api_uses_latest_completed_session_and_filters_negative(monkeypatch):
     class Repo:
+        def get_latest_date(self):
+            return date(2026, 10, 6)
+
         def get_by_date(self, prediction_date):
             assert prediction_date == date(2026, 10, 6)
             return [
@@ -66,6 +69,9 @@ def test_predictions_api_uses_latest_completed_session_and_filters_negative(monk
 
 def test_predictions_api_does_not_fall_back_to_oldest_saved_date(monkeypatch):
     class Repo:
+        def get_latest_date(self):
+            return date(2026, 10, 6)
+
         def get_by_date(self, prediction_date):
             assert prediction_date == date(2026, 10, 6)
             return []

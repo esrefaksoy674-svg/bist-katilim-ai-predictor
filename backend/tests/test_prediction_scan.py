@@ -160,3 +160,49 @@ def test_prediction_scan_filters_negative_expected_returns_and_keeps_list_select
     assert [prediction.symbol for prediction in persisted] == ["HIGH"]
     assert all(prediction.expected_change_percent > 0 for prediction in predictions)
     assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)
+
+
+def test_prediction_scan_accepts_strong_probability_with_positive_expected_return_below_five(monkeypatch):
+    monkeypatch.setattr(
+        prediction_scan,
+        "build_candidate_features",
+        lambda symbols, prediction_date: pd.DataFrame({"symbol": symbols}),
+    )
+    monkeypatch.setattr(
+        prediction_scan,
+        "build_predictions",
+        lambda **kwargs: [
+            SimpleNamespace(
+                symbol="STRONG",
+                prediction_date=date(2026, 10, 6),
+                probability_above_5=0.65,
+                expected_change_percent=4.2,
+                model_confidence=0.9,
+                pattern_count=12,
+                explanation={},
+                model_version="v1",
+            ),
+            SimpleNamespace(
+                symbol="WEAKER",
+                prediction_date=date(2026, 10, 6),
+                probability_above_5=0.35,
+                expected_change_percent=8.0,
+                model_confidence=0.9,
+                pattern_count=12,
+                explanation={},
+                model_version="v1",
+            ),
+        ],
+    )
+
+    predictions = prediction_scan.run_prediction_scan(
+        symbols=["STRONG", "WEAKER"],
+        prediction_date=date(2026, 10, 6),
+        target_date=date(2026, 10, 7),
+        trained_model=DummyModel(),
+        model_version="v1",
+        history=pd.DataFrame(),
+    )
+
+    assert [prediction.symbol for prediction in predictions] == ["STRONG"]
+    assert predictions[0].expected_change_percent == 4.2

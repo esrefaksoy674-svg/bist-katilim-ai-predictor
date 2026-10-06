@@ -8,6 +8,7 @@ from app.services.context_snapshot_repository_factory import get_context_snapsho
 from app.services.daily_news import run_daily_news_collection
 from app.services.prediction_evaluation import evaluate_predictions_for_target_date
 from app.services.daily_prediction import run_daily_prediction
+from app.services.learning_control import learning_control
 from app.services.learning_runner import run_daily_learning
 from app.services.prediction_history import build_prediction_history
 from app.services.prediction_repository_factory import get_prediction_repository
@@ -38,7 +39,8 @@ def run_daily_scan(
     )
 
     learning_result = None
-    if learning_enabled:
+    effective_learning = bool(learning_enabled and learning_control.can_learn())
+    if effective_learning:
         learning_result = run_daily_learning(
             symbols=symbols,
             signal_date=trading_date,
@@ -61,13 +63,14 @@ def run_daily_scan(
             "error": type(exc).__name__,
         }
 
-    context_status = {"status": "unavailable", "error": "RepositoryUnavailable"}
-    try:
-        context_repository = get_context_snapshot_repository()
-        context_status = {"status": "pending"}
-    except Exception as exc:
-        context_repository = None
-        context_status = {"status": "unavailable", "error": type(exc).__name__}
+    context_status = {"status": "disabled" if not effective_learning else "unavailable"}
+    context_repository = None
+    if effective_learning:
+        try:
+            context_repository = get_context_snapshot_repository()
+            context_status = {"status": "pending"}
+        except Exception as exc:
+            context_status = {"status": "unavailable", "error": type(exc).__name__}
 
     registry, _artifact = load_active_model()
     history = build_prediction_history(

@@ -171,6 +171,10 @@ def test_predictions_endpoint_keeps_high_probability_candidate_below_five_mean(m
         lambda: type("Repository", (), {"get_latest_date": lambda self: date(2026, 10, 2), "get_by_date": lambda self, value: rows})(),
     )
     monkeypatch.setattr(
+        "app.main.latest_trading_day",
+        lambda value: date(2026, 10, 2),
+    )
+    monkeypatch.setattr(
         "app.main.next_trading_day",
         lambda value: date(2026, 10, 5),
     )

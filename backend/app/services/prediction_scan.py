@@ -95,8 +95,8 @@ def run_prediction_scan(
     results = [
         result
         for result in results
-        if result.expected_change_percent > 0
-        and result.probability_above_5 > 0
+        if result.expected_change_percent >= 5.0
+        and result.probability_above_5 >= 0.5
     ]
     results.sort(
         key=lambda r: (

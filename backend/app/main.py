@@ -260,8 +260,25 @@ def predictions(prediction_date: date | None = None):
         # Never fall back to an older prediction set. Show only the most
         # recent completed BIST session's forecast.
         latest_session = latest_trading_day(date.today())
-        target_date = latest_session
+        stored_prediction_date = repository.get_latest_date()
 
+        # A prediction generated on a previous session must never be presented
+        # as today's forecast. If today's scan has not completed yet, return an
+        # explicit empty/stale state instead of silently showing yesterday.
+        if stored_prediction_date != latest_session:
+            return {
+                "prediction_date": latest_session.isoformat(),
+                "target_date": next_trading_day(latest_session).isoformat(),
+                "count": 0,
+                "predictions": [],
+                "data_status": "STALE_OR_NOT_READY",
+                "stored_prediction_date": (
+                    stored_prediction_date.isoformat()
+                    if stored_prediction_date else None
+                ),
+            }
+
+        target_date = latest_session
         rows = repository.get_by_date(target_date)
         next_session = next_trading_day(target_date)
         rows = [

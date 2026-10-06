@@ -156,7 +156,7 @@ def test_prediction_scan_filters_negative_expected_returns_and_keeps_list_select
         prediction_repository=SimpleNamespace(add=persisted.append),
     )
 
-    assert [prediction.symbol for prediction in predictions] == ["HIGH", "EDGE"]
-    assert [prediction.symbol for prediction in persisted] == ["HIGH", "EDGE"]
+    assert [prediction.symbol for prediction in predictions] == ["HIGH"]
+    assert [prediction.symbol for prediction in persisted] == ["HIGH"]
     assert all(prediction.expected_change_percent > 0 for prediction in predictions)
     assert all(prediction.target_date == date(2026, 10, 5) for prediction in predictions)

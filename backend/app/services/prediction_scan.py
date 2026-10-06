@@ -90,6 +90,14 @@ def run_prediction_scan(
         model_version=model_version,
         top_n=len(candidates),
     )
+    # Production selection is deliberately selective. Negative expected
+    # returns must never reach the mobile prediction list.
+    results = [
+        result
+        for result in results
+        if result.expected_change_percent > 0
+        and result.probability_above_5 > 0
+    ]
     results.sort(
         key=lambda r: (
             r.probability_above_5,
@@ -99,7 +107,7 @@ def run_prediction_scan(
         ),
         reverse=True,
     )
-    results = results[:top_n]
+    results = results[:max(1, min(int(top_n), 5))]
 
     resolved_target_date = target_date or next_trading_day(prediction_date)
     now = datetime.now(timezone.utc)

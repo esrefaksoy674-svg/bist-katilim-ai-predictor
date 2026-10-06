@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from time import perf_counter
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
@@ -14,10 +14,11 @@ from app.core.health import (
     check_runtime_configuration,
     get_health_status,
 )
+from app.services.learning_control import learning_control
 from app.services.market_data import fetch_daily_data
 from app.services.news_ingestion import collect_configured_news
 from app.services.prediction_repository_factory import get_prediction_repository
-from app.services.trading_calendar import next_trading_day
+from app.services.trading_calendar import latest_trading_day, next_trading_day
 from app.services.universe import fetch_katilim_universe
 
 app = FastAPI(
@@ -233,20 +234,42 @@ def performance(limit: int = 100):
     }
 
 
+@app.get("/learning-control")
+def get_learning_control():
+    """Return whether new learning/context data may be recorded."""
+    enabled = learning_control.is_enabled()
+    return {"enabled": enabled, "mode": "ENABLED" if enabled else "DISABLED"}
+
+
+@app.post("/learning-control")
+def set_learning_control(enabled: bool = Query(...)):
+    """Enable/disable new learning data and model promotion without stopping predictions."""
+    if enabled:
+        learning_control.enable()
+    else:
+        learning_control.disable()
+    current = learning_control.is_enabled()
+    return {"enabled": current, "mode": "ENABLED" if current else "DISABLED"}
+
+
 @app.get("/predictions")
 def predictions(prediction_date: date | None = None):
     """Return next-session forecasts ranked by estimated probability of +5%."""
     try:
         repository = get_prediction_repository()
-        target_date = prediction_date
-        if target_date is None:
-            target_date = repository.get_latest_date() or date.today()
+        # Never fall back to an older prediction set. Show only the most
+        # recent completed BIST session's forecast.
+        latest_session = latest_trading_day(date.today())
+        target_date = latest_session
+
         rows = repository.get_by_date(target_date)
         next_session = next_trading_day(target_date)
         rows = [
             row
             for row in rows
             if row.target_date == next_session
+            and row.expected_change_percent > 0
+            and row.probability_above_5 > 0
         ]
         rows.sort(
             key=lambda row: (

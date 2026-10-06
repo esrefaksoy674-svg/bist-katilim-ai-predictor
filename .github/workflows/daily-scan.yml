@@ -4,9 +4,12 @@ on:
   schedule:
     - cron: "15 16 * * 1-5"
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   scan:
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[run-daily-scan]')
     runs-on: ubuntu-latest
     defaults:
       run:

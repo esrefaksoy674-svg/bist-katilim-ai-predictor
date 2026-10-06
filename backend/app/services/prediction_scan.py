@@ -90,24 +90,45 @@ def run_prediction_scan(
         model_version=model_version,
         top_n=len(candidates),
     )
-    # Production selection is deliberately selective. Negative expected
-    # returns must never reach the mobile prediction list.
-    results = [
+    # Production selection is selective, but expected_change is descriptive:
+    # a strong +5% probability must not be discarded merely because the
+    # historical-average move is below 5%. Negative expected returns are never
+    # allowed into the user-facing list.
+    positive = [
         result
         for result in results
-        if result.expected_change_percent >= 5.0
-        and result.probability_above_5 >= 0.5
+        if result.expected_change_percent > 0
+        and result.probability_above_5 > 0
     ]
-    results.sort(
-        key=lambda r: (
-            r.probability_above_5,
-            r.expected_change_percent,
-            r.model_confidence,
-            r.pattern_count,
-        ),
+
+    # Prefer genuinely strong candidates first. If fewer than the requested
+    # number qualify, fill only from the best remaining positive candidates.
+    # This keeps the list small without inventing or admitting negative-return
+    # forecasts.
+    strong = [
+        result
+        for result in positive
+        if result.probability_above_5 >= 0.50
+    ]
+
+    def selection_score(result):
+        probability_score = result.probability_above_5 * 100.0
+        expected_score = min(max(result.expected_change_percent, 0.0), 10.0) * 2.0
+        confidence_score = result.model_confidence * 10.0
+        pattern_score = min(result.pattern_count, 20) * 0.10
+        return (
+            probability_score
+            + expected_score
+            + confidence_score
+            + pattern_score
+        )
+
+    pool = strong if strong else positive
+    pool.sort(
+        key=selection_score,
         reverse=True,
     )
-    results = results[:max(1, min(int(top_n), 5))]
+    results = pool[:max(1, min(int(top_n), 5))]
 
     resolved_target_date = target_date or next_trading_day(prediction_date)
     now = datetime.now(timezone.utc)

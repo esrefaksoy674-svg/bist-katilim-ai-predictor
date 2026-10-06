@@ -1,4 +1,5 @@
 name: Daily Katilim Scan
+# Controlled one-time trigger: [run-daily-scan]
 
 on:
   schedule:

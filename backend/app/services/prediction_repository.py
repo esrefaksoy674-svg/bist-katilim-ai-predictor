@@ -22,6 +22,10 @@ class PredictionRepository:
     def get_pending_through_date(self, target_date: date) -> list[Prediction]:
         raise NotImplementedError
 
+    def replace_for_date(self, prediction_date: date, target_date: date) -> None:
+        """Remove the current forecast set before writing a fresh rerun."""
+        raise NotImplementedError
+
     def get_recent(self, limit: int = 100) -> list[Prediction]:
         raise NotImplementedError
 
@@ -127,6 +131,11 @@ class SupabasePredictionRepository(PredictionRepository):
             .execute()
         )
         return [self._from_row(row) for row in (response.data or [])]
+
+    def replace_for_date(self, prediction_date: date, target_date: date) -> None:
+        self.client.table(self.table_name).delete().eq(
+            "prediction_date", prediction_date.isoformat()
+        ).eq("target_date", target_date.isoformat()).execute()
 
     def get_recent(self, limit: int = 100) -> list[Prediction]:
         safe_limit = max(1, min(int(limit), 500))

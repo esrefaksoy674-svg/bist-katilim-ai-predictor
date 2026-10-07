@@ -1,5 +1,6 @@
 name: Daily Katilim Scan
 # Controlled one-time trigger: [run-daily-scan]
+# Fresh verification run after prediction-selection fix
 
 on:
   schedule:

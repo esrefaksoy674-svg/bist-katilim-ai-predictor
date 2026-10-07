@@ -1,9 +1,23 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 
 from app.services.prediction_repository import PredictionRepository
 from app.services.market_data import fetch_daily_data
+
+MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
+MARKET_CLOSE = time(18, 0)
+
+
+def _session_is_closed(target_date: date) -> bool:
+    """Do not lock in an intraday result as the final daily outcome."""
+    now_local = datetime.now(MARKET_TIMEZONE)
+    if target_date < now_local.date():
+        return True
+    if target_date > now_local.date():
+        return False
+    return now_local.time() >= MARKET_CLOSE
 
 
 def evaluate_predictions_for_date(
@@ -37,9 +51,17 @@ def _evaluate_predictions(repository, predictions, through_date: date) -> int:
 
     for prediction in predictions:
         prediction_target_date = prediction.target_date
+        if prediction_target_date > through_date:
+            continue
+
+        # A target that is still trading must never be evaluated from a partial
+        # intraday close. Once today's session is closed, an earlier provisional
+        # value is allowed to be corrected with the final daily close.
+        if not _session_is_closed(prediction_target_date):
+            continue
         if (
-            prediction_target_date > through_date
-            or prediction.actual_change_percent is not None
+            prediction.actual_change_percent is not None
+            and prediction_target_date < date.today()
         ):
             continue
 

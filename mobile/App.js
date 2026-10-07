@@ -169,6 +169,8 @@ export default function App() {
   }, [forecasts]);
 
   const trackingRows = performance?.predictions || [];
+  const evaluatedRows = trackingRows.filter((item) => item.actual_change_percent != null);
+  const pendingRows = trackingRows.filter((item) => item.actual_change_percent == null);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -191,7 +193,7 @@ export default function App() {
           <Text style={[styles.tabText, screen === "forecasts" && styles.activeTabText]}>Tahminler</Text>
         </Pressable>
         <Pressable onPress={() => setScreen("tracking")} style={[styles.tab, screen === "tracking" && styles.activeTab]}>
-          <Text style={[styles.tabText, screen === "tracking" && styles.activeTabText]}>Sonuç takibi</Text>
+          <Text style={[styles.tabText, screen === "tracking" && styles.activeTabText]}>Değerlendirme</Text>
         </Pressable>
       </View>
 
@@ -238,19 +240,26 @@ export default function App() {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>Tahmin sonuçları</Text>
-            <Text style={styles.sectionHint}>Hedef işlem günü kapandıktan sonra gerçek değişim ve isabet oranı güncellenir.</Text>
+            <Text style={styles.sectionTitle}>Tahmin değerlendirmesi</Text>
+            <Text style={styles.sectionHint}>Kapanmış hedef günlerin gerçek sonucu ayrı gösterilir; bekleyen tahminler aşağıda tutulur.</Text>
             <View style={styles.stats}>
               <StatCard
-                label="Gerçekleşen +%5 isabeti"
-                value={performance?.hit_rate_percent == null ? "Ölçülüyor" : formatPercent(performance.hit_rate_percent)}
-                note={performance ? performance.evaluated_count + " sonuç değerlendirildi" : ""}
+                label="Değerlendirilen"
+                value={String(performance?.evaluated_count ?? "—")}
+                note={performance?.hit_rate_percent == null ? "Henüz ölçüm yok" : "İsabet " + formatPercent(performance.hit_rate_percent)}
               />
               <StatCard label="Bekleyen tahmin" value={String(performance?.pending_count ?? "—")} />
             </View>
             {loading && trackingRows.length === 0 ? <ActivityIndicator color={COLORS.green} style={styles.loader} /> : null}
-            {!loading && trackingRows.length === 0 ? <Text style={styles.empty}>Takip edilecek tahmin henüz yok.</Text> : null}
-            {trackingRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + index} item={item} />)}
+            {!loading && evaluatedRows.length === 0 ? <Text style={styles.empty}>Henüz değerlendirilmiş tahmin yok.</Text> : null}
+            {evaluatedRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + index} item={item} />)}
+            {pendingRows.length > 0 ? (
+              <>
+                <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Bekleyen tahminler</Text>
+                <Text style={styles.sectionHint}>Hedef günü henüz kapanmayan kayıtlar.</Text>
+                {pendingRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + "pending" + index} item={item} />)}
+              </>
+            ) : null}
           </>
         )}
         <View style={styles.notice}>

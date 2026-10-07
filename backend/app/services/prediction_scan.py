@@ -131,6 +131,16 @@ def run_prediction_scan(
     results = pool[:max(1, min(int(top_n), 5))]
 
     resolved_target_date = target_date or next_trading_day(prediction_date)
+
+    # A rerun on the same trading day must replace the previous forecast set.
+    # Otherwise symbols that were selected during an intraday scan can survive
+    # into the end-of-day result even when their closing data no longer qualifies.
+    if prediction_repository is not None and hasattr(prediction_repository, "replace_for_date"):
+        prediction_repository.replace_for_date(
+            prediction_date=prediction_date,
+            target_date=resolved_target_date,
+        )
+
     now = datetime.now(timezone.utc)
     predictions = []
 

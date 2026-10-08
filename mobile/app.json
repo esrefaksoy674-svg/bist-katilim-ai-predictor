@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "BIST Katılım AI",
-    "slug": "bist-katilim-ai",
+    "name": "BIST Katılım AI Eski",
+    "slug": "bist-katilim-ai-eski",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "scheme": "bistkatilim",
+    "scheme": "bistkatilimeski",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.esrefaksoy674.bistkatilim"
+      "bundleIdentifier": "com.esrefaksoy674.bistkatilimeski"
     },
     "android": {
-      "package": "com.esrefaksoy674.bistkatilim",
+      "package": "com.esrefaksoy674.bistkatilimeski",
       "adaptiveIcon": {
         "backgroundColor": "#0b1220"
       }

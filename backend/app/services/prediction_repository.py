@@ -22,6 +22,10 @@ class PredictionRepository:
     def get_pending_through_date(self, target_date: date) -> list[Prediction]:
         raise NotImplementedError
 
+    def get_recheckable_through_date(self, target_date: date) -> list[Prediction]:
+        """Return unresolved or provisionally evaluated predictions through a date."""
+        raise NotImplementedError
+
     def replace_for_date(self, prediction_date: date, target_date: date) -> None:
         """Remove the current forecast set before writing a fresh rerun."""
         raise NotImplementedError
@@ -126,6 +130,19 @@ class SupabasePredictionRepository(PredictionRepository):
             .select("*")
             .lte("target_date", target_date.isoformat())
             .is_("actual_change_percent", "null")
+            .order("target_date")
+            .order("probability_above_5", desc=True)
+            .execute()
+        )
+        return [self._from_row(row) for row in (response.data or [])]
+
+    def get_recheckable_through_date(self, target_date: date) -> list[Prediction]:
+        # Include rows that were evaluated before the target session closed so
+        # they can be corrected with the final daily close.
+        response = (
+            self.client.table(self.table_name)
+            .select("*")
+            .lte("target_date", target_date.isoformat())
             .order("target_date")
             .order("probability_above_5", desc=True)
             .execute()

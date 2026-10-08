@@ -39,7 +39,9 @@ def evaluate_predictions_for_target_date(
     target_date: date,
 ) -> int:
     """Evaluate unresolved predictions whose target sessions have closed."""
-    if hasattr(repository, "get_pending_through_date"):
+    if hasattr(repository, "get_recheckable_through_date"):
+        predictions = repository.get_recheckable_through_date(target_date)
+    elif hasattr(repository, "get_pending_through_date"):
         predictions = repository.get_pending_through_date(target_date)
     else:
         predictions = repository.get_by_target_date(target_date)
@@ -59,11 +61,18 @@ def _evaluate_predictions(repository, predictions, through_date: date) -> int:
         # value is allowed to be corrected with the final daily close.
         if not _session_is_closed(prediction_target_date):
             continue
-        if (
-            prediction.actual_change_percent is not None
-            and prediction_target_date < date.today()
-        ):
-            continue
+        if prediction.actual_change_percent is not None:
+            # A result recorded before the session close is provisional and
+            # must be replaced by the final daily close.
+            if prediction.evaluated_at is not None:
+                evaluated_local = prediction.evaluated_at.astimezone(MARKET_TIMEZONE)
+                close_at = datetime.combine(
+                    prediction_target_date,
+                    MARKET_CLOSE,
+                    tzinfo=MARKET_TIMEZONE,
+                )
+                if evaluated_local >= close_at:
+                    continue
 
         data = fetch_daily_data(prediction.symbol, period="2y")
         rows = data[data.index.date == prediction_target_date]

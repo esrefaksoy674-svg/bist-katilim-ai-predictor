@@ -168,9 +168,11 @@ export default function App() {
     return forecasts.reduce((sum, item) => sum + (Number(item.expected_change_percent) || 0), 0) / forecasts.length;
   }, [forecasts]);
 
-  const trackingRows = performance?.predictions || [];
+  const trackingRows = Array.isArray(performance?.predictions) ? performance.predictions : [];
   const evaluatedRows = trackingRows.filter((item) => item.actual_change_percent != null);
   const pendingRows = trackingRows.filter((item) => item.actual_change_percent == null);
+  const pendingCount = Number(performance?.pending_count || 0);
+  const evaluatedCount = Number(performance?.evaluated_count || 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -245,20 +247,29 @@ export default function App() {
             <View style={styles.stats}>
               <StatCard
                 label="Değerlendirilen"
-                value={String(performance?.evaluated_count ?? "—")}
+                value={String(evaluatedCount)}
                 note={performance?.hit_rate_percent == null ? "Henüz ölçüm yok" : "İsabet " + formatPercent(performance.hit_rate_percent)}
               />
-              <StatCard label="Bekleyen tahmin" value={String(performance?.pending_count ?? "—")} />
+              <StatCard label="Bekleyen tahmin" value={String(pendingCount)} />
             </View>
             {loading && trackingRows.length === 0 ? <ActivityIndicator color={COLORS.green} style={styles.loader} /> : null}
-            {!loading && evaluatedRows.length === 0 ? <Text style={styles.empty}>Henüz değerlendirilmiş tahmin yok.</Text> : null}
-            {evaluatedRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + index} item={item} />)}
+            {evaluatedRows.length > 0 ? (
+              <>
+                <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Değerlendirilen tahminler</Text>
+                {evaluatedRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + "evaluated" + index} item={item} />)}
+              </>
+            ) : null}
             {pendingRows.length > 0 ? (
               <>
                 <Text style={[styles.sectionTitle, { marginTop: 10 }]}>Bekleyen tahminler</Text>
-                <Text style={styles.sectionHint}>Hedef günü henüz kapanmayan kayıtlar.</Text>
+                <Text style={styles.sectionHint}>Hedef günü henüz kapanmayan veya gün sonu sonucu beklenen kayıtlar.</Text>
                 {pendingRows.map((item, index) => <OutcomeCard key={item.symbol + item.prediction_date + "pending" + index} item={item} />)}
               </>
+            ) : null}
+            {!loading && evaluatedRows.length === 0 && pendingRows.length === 0 ? (
+              <Text style={styles.empty}>
+                {pendingCount > 0 ? "Bekleyen kayıt sayısı mevcut ancak kayıt ayrıntıları API'den gelmedi. Yenile." : "Henüz değerlendirme kaydı yok."}
+              </Text>
             ) : null}
           </>
         )}

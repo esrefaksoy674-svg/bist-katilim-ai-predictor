@@ -48,3 +48,5 @@ jobs:
           name: bist-katilim-ai-eski-surum-apk
           path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+# Rebuild old comparison APK with the isolated package name.

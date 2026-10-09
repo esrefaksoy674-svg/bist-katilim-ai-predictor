@@ -1,0 +1,67 @@
+name: Build 2 Oct comparison APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Separate Render URL for the 2 Oct backend, e.g. https://your-old-service.onrender.com"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: versiyon-2026-10-02-mobil-hazirlik
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+      - name: Set API URL
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          url = os.environ["API_BASE_URL"].strip().rstrip("/")
+          if not url.startswith("https://"):
+              raise SystemExit("API URL must start with https://")
+          p = Path("App.js")
+          content = p.read_text()
+          if "__OLD_API_URL__" not in content:
+              raise SystemExit("API placeholder not found")
+          p.write_text(content.replace('"__OLD_API_URL__"', repr(url)))
+          PY
+      - run: npm install --no-audit --no-fund
+      - run: npx expo prebuild --platform android --no-install
+      - name: Build standalone APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+      - name: Verify APK
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          unzip -l "$APK" | grep -E "assets/index.android.bundle|assets/.*\.bundle" > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bist-katilim-2026-10-02-comparison-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

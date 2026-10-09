@@ -1,0 +1,92 @@
+name: Build 2026-10-02 comparison APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Ayrı eski-sürüm Render servisinin HTTPS adresi (sonunda / olmasın)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate server URL
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+        run: |
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          url = os.environ["API_BASE_URL"].strip().rstrip("/")
+          parsed = urlparse(url)
+          if parsed.scheme != "https" or not parsed.netloc:
+              raise SystemExit("API adresi https:// ile başlamalı.")
+          if "bist-katilim-ai-predictor-api.onrender.com" in parsed.netloc:
+              raise SystemExit("Karşılaştırma için mevcut üretim API'si kullanılamaz; ayrı eski-sürüm servisi gerekli.")
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("API_BASE_URL=" + url + "\\n")
+          PY
+
+      - name: Checkout October 2 comparison branch
+        uses: actions/checkout@v4
+        with:
+          ref: versiyon-2026-10-02-mobil-hazirlik
+
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set API URL
+        working-directory: mobile
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path("App.js")
+          text = p.read_text(encoding="utf-8")
+          if '"__OLD_API_URL__"' not in text:
+              raise SystemExit("Eski API adresi yer tutucusu bulunamadı.")
+          p.write_text(text.replace('"__OLD_API_URL__"', '"' + os.environ["API_BASE_URL"] + '"'), encoding="utf-8")
+          PY
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Build release APK
+        working-directory: mobile
+        run: |
+          npx expo prebuild --platform android --non-interactive
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Verify APK
+        run: test -s mobile/android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bist-katilim-2026-10-02-comparison-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

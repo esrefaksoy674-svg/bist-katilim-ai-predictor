@@ -41,8 +41,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22.13.1"
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
 
       - name: Configure Java
         uses: actions/setup-java@v4
@@ -70,7 +68,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: mobile
-        run: npm ci
+        run: npm install
 
       - name: Build release APK
         working-directory: mobile

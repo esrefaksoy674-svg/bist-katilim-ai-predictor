@@ -29,7 +29,7 @@ jobs:
           if "bist-katilim-ai-predictor-api.onrender.com" in parsed.netloc:
               raise SystemExit("Karşılaştırma için mevcut üretim API'si kullanılamaz; ayrı eski-sürüm servisi gerekli.")
           with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write("API_BASE_URL=" + url + "\\n")
+              print("API_BASE_URL=" + url, file=open(os.environ["GITHUB_ENV"], "a"))
           PY
 
       - name: Checkout October 2 comparison branch

@@ -1,0 +1,49 @@
+name: Daily scan - October 2 comparison version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 16 * * 1-5"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout isolated October 2 code
+        uses: actions/checkout@v4
+        with:
+          ref: versiyon-2026-10-02-mobil-hazirlik
+
+      - name: Check isolated database secrets
+        env:
+          SUPABASE_URL: ${{ secrets.OLD_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.OLD_SUPABASE_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          if not os.environ.get("SUPABASE_URL") or not os.environ.get("SUPABASE_KEY"):
+              raise SystemExit("Repository secrets OLD_SUPABASE_URL and OLD_SUPABASE_KEY must point to the separate comparison Supabase project.")
+          PY
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run October 2 model scan
+        env:
+          SUPABASE_URL: ${{ secrets.OLD_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.OLD_SUPABASE_KEY }}
+          ENVIRONMENT: comparison-2026-10-02
+        run: python -m app.services.scheduled_scan

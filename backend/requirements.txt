@@ -13,3 +13,4 @@ feedparser
 python-dotenv
 supabase
 joblib
+psycopg[binary]

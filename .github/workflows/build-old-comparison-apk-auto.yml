@@ -1,0 +1,74 @@
+name: Build isolated October 2 comparison APK
+
+on:
+  push:
+    branches:
+      - versiyon-2026-10-02-mobil-hazirlik
+    paths:
+      - ".github/workflows/build-old-comparison-apk-auto.yml"
+      - "mobile/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated comparison branch
+        uses: actions/checkout@v4
+        with:
+          ref: versiyon-2026-10-02-mobil-hazirlik
+
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.1"
+
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set isolated API URL
+        working-directory: mobile
+        env:
+          API_BASE_URL: https://bist-katilim-ai-predictor-20261002-api.onrender.com
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path("App.js")
+          text = p.read_text(encoding="utf-8")
+          if '"__OLD_API_URL__"' not in text:
+              raise SystemExit("Eski API adresi yer tutucusu bulunamadı.")
+          p.write_text(text.replace('"__OLD_API_URL__"', '"' + os.environ["API_BASE_URL"] + '"'), encoding="utf-8")
+          PY
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: Build release APK
+        working-directory: mobile
+        run: |
+          npx expo prebuild --platform android --non-interactive
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Verify APK
+        run: test -s mobile/android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bist-katilim-2026-10-02-comparison-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

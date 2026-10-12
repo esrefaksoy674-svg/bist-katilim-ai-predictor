@@ -305,6 +305,7 @@ def predictions(prediction_date: date | None = None):
 
     return {
         "prediction_date": target_date.isoformat(),
+        "target_date": next_session.isoformat(),
         "count": len(rows),
         "predictions": [
             {

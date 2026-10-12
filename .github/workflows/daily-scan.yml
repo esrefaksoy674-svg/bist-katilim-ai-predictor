@@ -25,8 +25,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify comparison database configuration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::GitHub Actions secret DATABASE_URL is missing. The comparison API reads predictions from Render PostgreSQL, so the scan must use the same database."
+            exit 1
+          fi
+
       - name: Run daily scan
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -m app.services.scheduled_scan

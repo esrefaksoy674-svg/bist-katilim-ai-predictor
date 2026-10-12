@@ -9,6 +9,7 @@ from app.services.market_data import fetch_daily_data
 from app.services.prediction_engine import FEATURE_NAMES, build_predictions
 from app.services.prediction_repository import PredictionRepository
 from app.services.technical import calculate_features
+from app.services.trading_calendar import next_trading_day
 
 
 def build_candidate_features(
@@ -66,7 +67,7 @@ def run_prediction_scan(
         top_n=top_n,
     )
 
-    resolved_target_date = target_date or prediction_date
+    resolved_target_date = target_date or next_trading_day(prediction_date)
     now = datetime.now(timezone.utc)
     predictions = []
 

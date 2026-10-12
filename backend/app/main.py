@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
+import secrets
 from datetime import date, datetime, timezone
 from time import perf_counter
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 
 from app.core.health import (
     check_pipeline_imports,
@@ -34,6 +36,40 @@ def root():
 @app.get("/health")
 def health():
     return get_health_status()
+
+
+@app.post("/internal/run-daily-scan")
+def trigger_daily_scan(x_scan_token: str | None = Header(default=None)):
+    """Run the comparison scan inside the API's own database/network environment."""
+    expected_token = os.getenv("SCAN_TRIGGER_TOKEN", "")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="Scheduled scan trigger is not configured.")
+    if not x_scan_token or not secrets.compare_digest(x_scan_token, expected_token):
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    try:
+        from app.services.scheduled_scan import run_scheduled_scan
+
+        result = run_scheduled_scan()
+        scan_result = result.get("result", {})
+        prediction_run = scan_result.get("predictions")
+        predictions = getattr(prediction_run, "predictions", []) or []
+        first_target = predictions[0].target_date.isoformat() if predictions else None
+        return {
+            "status": "ok",
+            "trading_date": result.get("trading_date"),
+            "universe_count": scan_result.get("universe_count", 0),
+            "prediction_count": len(predictions),
+            "target_date": first_target,
+            "model_version": getattr(prediction_run, "model_version", None),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Daily scan failed: {type(exc).__name__}",
+        ) from exc
 
 
 @app.get("/health/self-test")

@@ -15,6 +15,7 @@ from app.core.health import (
     get_health_status,
 )
 from app.services.learning_control import learning_control
+from app.services.learning_repository import get_learning_event_repository
 from app.services.market_data import fetch_daily_data
 from app.services.news_ingestion import collect_configured_news
 from app.services.prediction_repository_factory import get_prediction_repository
@@ -230,6 +231,60 @@ def performance(limit: int = 100):
                 "model_version": row.model_version,
             }
             for row in rows
+        ],
+    }
+
+
+@app.get("/learning-patterns")
+def learning_patterns(limit: int = Query(default=100, ge=1, le=500)):
+    """Show persistent >5% signal examples and their prior-session indicators."""
+    try:
+        events = get_learning_event_repository().all()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Öğrenme örüntüleri alınamadı: {type(exc).__name__}",
+        ) from exc
+
+    events = sorted(events, key=lambda event: (event.signal_date, event.symbol), reverse=True)
+    feature_names = sorted({
+        name
+        for event in events
+        for name in (event.technical_features or {}).keys()
+    })
+    averages = {}
+    for name in feature_names:
+        values = []
+        for event in events:
+            value = (event.technical_features or {}).get(name)
+            try:
+                numeric = float(value)
+                if numeric == numeric and abs(numeric) != float("inf"):
+                    values.append(numeric)
+            except (TypeError, ValueError):
+                continue
+        if values:
+            averages[name] = round(sum(values) / len(values), 4)
+
+    return {
+        "sample_count": len(events),
+        "threshold_percent": 5.0,
+        "average_signal_return_percent": (
+            round(sum(event.rise_percent for event in events) / len(events), 2)
+            if events else None
+        ),
+        "average_prior_day_indicators": averages,
+        "events": [
+            {
+                "symbol": event.symbol,
+                "signal_date": event.signal_date.isoformat(),
+                "reference_date": event.reference_date.isoformat(),
+                "rise_percent": round(event.rise_percent, 2),
+                "technical_features": event.technical_features or {},
+                "news_features": event.news_features or {},
+                "sector_features": event.sector_features or {},
+            }
+            for event in events[:limit]
         ],
     }
 

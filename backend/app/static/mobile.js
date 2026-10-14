@@ -22,11 +22,63 @@
 
   const learning = document.createElement("section");
   learning.style.marginTop = "28px";
-  learning.innerHTML = '<h2 style="font-size:20px;margin:0 0 4px">Öğrenilen örüntüler</h2><p style="margin:0 0 12px;color:#9aacc4;font-size:13px">Katılım evreninde %5 üzeri yükselen hisselerin, yükselişten önceki işlem gününden alınan göstergeleri.</p><button id="show-learning" type="button">Öğrenmeyi göster</button><p id="learning-summary" style="color:#9aacc4;font-size:13px"></p><div id="learning-pattern-results"></div>';
+  learning.innerHTML = '<h2 style="font-size:20px;margin:0 0 4px">Öğrenme modu ve örüntüler</h2><p style="margin:0 0 12px;color:#9aacc4;font-size:13px">Mod açıkken yeni öğrenme kayıtları alınır; kapalıyken tahmin taraması devam eder ama yeni örnekler öğrenme belleğine eklenmez.</p><button id="learning-toggle" type="button">Öğrenme durumu yükleniyor…</button> <span id="learning-control-status" role="status" style="color:#9aacc4;font-size:13px"></span><div style="height:12px"></div><button id="show-learning" type="button">Öğrenilen örüntüleri göster</button><p id="learning-summary" style="color:#9aacc4;font-size:13px"></p><div id="learning-pattern-results"></div>';
   tracking.after(learning);
+  const learningToggle = learning.querySelector("#learning-toggle");
+  const learningControlStatus = learning.querySelector("#learning-control-status");
   const showLearning = learning.querySelector("#show-learning");
   const learningSummary = learning.querySelector("#learning-summary");
   const learningResults = learning.querySelector("#learning-pattern-results");
+  let learningEnabled = null;
+
+  function renderLearningControl() {
+    learningToggle.textContent = learningEnabled ? "Öğrenme modunu kapat" : "Öğrenme modunu aç";
+    learningToggle.setAttribute("aria-pressed", learningEnabled ? "true" : "false");
+    learningControlStatus.textContent = learningEnabled ? "Durum: Açık" : "Durum: Kapalı";
+  }
+
+  async function loadLearningControl() {
+    learningToggle.disabled = true;
+    try {
+      const response = await fetch("/learning-control", {headers:{Accept:"application/json"}, cache:"no-store"});
+      if (!response.ok) throw new Error("Unavailable");
+      const data = await response.json();
+      learningEnabled = data.enabled === true;
+      renderLearningControl();
+    } catch (_) {
+      learningToggle.textContent = "Öğrenme durumu alınamadı";
+      learningControlStatus.textContent = "API bağlantısını kontrol edin.";
+    } finally {
+      learningToggle.disabled = false;
+    }
+  }
+
+  learningToggle.addEventListener("click", async () => {
+    if (learningEnabled === null) return;
+    const desired = !learningEnabled;
+    learningToggle.disabled = true;
+    learningControlStatus.textContent = "Kaydediliyor…";
+    try {
+      const response = await fetch("/learning-control?enabled=" + String(desired), {
+        method:"POST",
+        headers:{Accept:"application/json"},
+        cache:"no-store"
+      });
+      if (!response.ok) throw new Error("Unavailable");
+      const data = await response.json();
+      learningEnabled = data.enabled === true;
+      renderLearningControl();
+      learningControlStatus.textContent = learningEnabled
+        ? "Öğrenme açıldı; yeni uygun örnekler kaydedilebilir."
+        : "Öğrenme kapatıldı; tahmin taraması devam eder.";
+    } catch (_) {
+      learningControlStatus.textContent = "Değişiklik uygulanamadı. Bağlantıyı kontrol edip tekrar deneyin.";
+    } finally {
+      learningToggle.disabled = false;
+    }
+  });
+
+  loadLearningControl();
 
   showLearning.addEventListener("click", async () => {
     showLearning.disabled = true;

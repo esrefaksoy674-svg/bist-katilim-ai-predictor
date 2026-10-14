@@ -1,36 +1,58 @@
 from __future__ import annotations
 
-from app.services.model_artifact_repository import (
-    SupabaseStorageModelArtifactRepository,
-)
+import numpy as np
+import pandas as pd
+
+from app.services.learning_epoch import LEARNING_EPOCH_VERSION
 from app.services.model_registry import ModelRegistry
-from app.services.model_version_repository import (
-    SupabaseModelVersionRepository,
-    restore_registry,
-)
-from app.services.supabase_client import get_supabase_client
+from app.services.model_training import TrainedModel
+
+
+class FreshStartScorer:
+    """Deterministic cold-start scorer; deliberately contains no prior learned model."""
+
+    def predict_proba(self, features):
+        frame = pd.DataFrame(features).copy()
+
+        def numeric(name):
+            if name not in frame.columns:
+                return pd.Series(0.0, index=frame.index)
+            return pd.to_numeric(frame[name], errors="coerce").fillna(0.0)
+
+        rsi = numeric("rsi")
+        score = (
+            ((rsi >= 40) & (rsi <= 68)).astype(float)
+            + (numeric("macd_histogram") > 0).astype(float)
+            + (numeric("volume_ratio") >= 1.2).astype(float)
+            + (numeric("momentum") > 0).astype(float)
+            + (numeric("price_vs_vwap_percent") > 0).astype(float)
+            + (numeric("price_vs_sma20_percent") > 0).astype(float)
+        )
+        probability = (0.25 + (score / 6.0) * 0.65).clip(0.01, 0.90)
+        positive = probability.to_numpy(dtype=float)
+        return np.column_stack((1.0 - positive, positive))
 
 
 def load_active_model() -> tuple[ModelRegistry, object]:
-    """Supabase'tan kayıtlı aktif model metadata ve artefaktını yükler."""
-    client = get_supabase_client()
-    registry = ModelRegistry()
-    repository = SupabaseModelVersionRepository(client)
-    artifact_repository = SupabaseStorageModelArtifactRepository(client)
+    """Start a genuinely fresh epoch without loading any pre-reset model artifact.
 
-    restore_registry(
-        registry=registry,
-        repository=repository,
-        artifact_repository=artifact_repository,
+    Historic OHLCV remains available to calculate current technical indicators.
+    Previously trained model artifacts and learned pattern examples are not used.
+    """
+    from app.services.prediction_engine import FEATURE_NAMES
+
+    artifact = TrainedModel(
+        model=FreshStartScorer(),
+        feature_names=list(FEATURE_NAMES),
+        sample_count=0,
+        metrics={"accuracy": 0.0, "cold_start": True},
     )
-
-    active = registry.active()
-    if active is None:
-        raise RuntimeError("Kalıcı aktif model bulunamadı.")
-
-    if active.artifact is None:
-        raise RuntimeError(
-            f"Aktif model artefaktı yüklenemedi: {active.version}"
-        )
-
-    return registry, active.artifact
+    registry = ModelRegistry()
+    registry.register_shadow(
+        version=LEARNING_EPOCH_VERSION,
+        sample_count=0,
+        pattern_count=0,
+        artifact=artifact,
+    )
+    registry.activate(LEARNING_EPOCH_VERSION)
+    return registry, artifact

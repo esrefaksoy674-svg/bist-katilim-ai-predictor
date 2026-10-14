@@ -15,12 +15,17 @@ from app.core.health import (
     get_health_status,
 )
 from app.services.learning_control import learning_control
-from app.services.learning_repository import get_learning_event_repository
+from app.services.learning_memory_repository import SupabaseLearningEventRepository
 from app.services.market_data import fetch_daily_data
 from app.services.news_ingestion import collect_configured_news
 from app.services.prediction_repository_factory import get_prediction_repository
+from app.services.supabase_client import get_supabase_client
 from app.services.trading_calendar import latest_trading_day, next_trading_day
 from app.services.universe import fetch_katilim_universe
+
+def get_learning_event_repository():
+    """Create the Supabase-backed repository for persistent learning events."""
+    return SupabaseLearningEventRepository(get_supabase_client())
 
 app = FastAPI(
     title="BIST Katılım AI Predictor",

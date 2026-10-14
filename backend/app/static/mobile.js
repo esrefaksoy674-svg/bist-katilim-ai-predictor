@@ -20,6 +20,79 @@
   const summary = tracking.querySelector("#tracking-summary");
   const history = tracking.querySelector("#tracking-history");
 
+  const learning = document.createElement("section");
+  learning.style.marginTop = "28px";
+  learning.innerHTML = '<h2 style="font-size:20px;margin:0 0 4px">Öğrenilen örüntüler</h2><p style="margin:0 0 12px;color:#9aacc4;font-size:13px">Katılım evreninde %5 üzeri yükselen hisselerin, yükselişten önceki işlem gününden alınan göstergeleri.</p><button id="show-learning" type="button">Öğrenmeyi göster</button><p id="learning-summary" style="color:#9aacc4;font-size:13px"></p><div id="learning-pattern-results"></div>';
+  tracking.after(learning);
+  const showLearning = learning.querySelector("#show-learning");
+  const learningSummary = learning.querySelector("#learning-summary");
+  const learningResults = learning.querySelector("#learning-pattern-results");
+
+  showLearning.addEventListener("click", async () => {
+    showLearning.disabled = true;
+    learningSummary.textContent = "Öğrenme kayıtları yükleniyor…";
+    try {
+      const response = await fetch("/learning-patterns?limit=100", {headers:{Accept:"application/json"}});
+      if (!response.ok) throw new Error("Unavailable");
+      const data = await response.json();
+      learningSummary.textContent = "Öğrenilmiş örnek: " + (data.sample_count || 0) +
+        " · Ortalama sonraki günlük yükseliş: " +
+        (data.average_signal_return_percent == null ? "—" : Number(data.average_signal_return_percent).toLocaleString("tr-TR", {maximumFractionDigits:2}) + "%");
+      learningResults.replaceChildren();
+      const indicators = data.average_prior_day_indicators || {};
+      const indicatorNames = Object.keys(indicators);
+      if (indicatorNames.length) {
+        const heading = document.createElement("h3");
+        heading.textContent = "Örneklerde ortalama önceki gün göstergeleri";
+        heading.style.fontSize = "15px";
+        learningResults.append(heading);
+        const list = document.createElement("p");
+        list.style.color = "#9aacc4";
+        list.textContent = indicatorNames.map(name => name + ": " + Number(indicators[name]).toLocaleString("tr-TR", {maximumFractionDigits:3})).join(" · ");
+        learningResults.append(list);
+      }
+      const events = Array.isArray(data.events) ? data.events : [];
+      if (!events.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "Henüz öğrenme kaydı bulunmuyor. Gün sonu taraması tamamlandıktan sonra tekrar kontrol edin.";
+        learningResults.append(empty);
+      } else {
+        const table = document.createElement("table");
+        table.innerHTML = "<thead><tr><th>Hisse</th><th>Referans günü</th><th>Yükseliş günü</th><th>Gerçek yükseliş</th><th>Önceki gün göstergeleri</th></tr></thead>";
+        const body = document.createElement("tbody");
+        for (const event of events) {
+          const tr = document.createElement("tr");
+          const values = [
+            event.symbol || "—",
+            event.reference_date || "—",
+            event.signal_date || "—",
+            event.rise_percent == null ? "—" : Number(event.rise_percent).toLocaleString("tr-TR", {maximumFractionDigits:2}) + "%",
+            Object.entries(event.technical_features || {}).map(([key,value]) => key + ": " + (typeof value === "number" ? value.toLocaleString("tr-TR", {maximumFractionDigits:3}) : String(value))).join(" · ") || "—"
+          ];
+          values.forEach((value,index) => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            td.dataset.label = ["Hisse","Referans günü","Yükseliş günü","Gerçek yükseliş","Önceki gün göstergeleri"][index];
+            if (index === 0) td.className = "symbol";
+            tr.append(td);
+          });
+          body.append(tr);
+        }
+        table.append(body);
+        const wrap = document.createElement("div");
+        wrap.className = "table-wrap";
+        wrap.style.overflowX = "auto";
+        wrap.append(table);
+        learningResults.append(wrap);
+      }
+    } catch (_) {
+      learningSummary.textContent = "Öğrenme örüntülerine şu anda ulaşılamıyor.";
+    } finally {
+      showLearning.disabled = false;
+    }
+  });
+
   let installPrompt = null;
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();

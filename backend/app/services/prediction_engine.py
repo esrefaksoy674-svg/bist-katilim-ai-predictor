@@ -188,7 +188,12 @@ def build_predictions(
                     "validation_accuracy": validation_accuracy,
                     "historical_similar_positive_rate": positive_rate,
                     "similar_sample_count": pattern_count,
-                    "method": "random_forest_plus_similarity_statistics",
+                    "method": (
+                        "cold_start_technical_score_no_prior_patterns"
+                        if trained_model.metrics.get("cold_start")
+                        else "random_forest_plus_similarity_statistics"
+                    ),
+                    "cold_start": bool(trained_model.metrics.get("cold_start", False)),
                 },
                 model_version=model_version,
             )

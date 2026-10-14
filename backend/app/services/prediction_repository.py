@@ -160,6 +160,7 @@ class SupabasePredictionRepository(PredictionRepository):
         response = (
             self.client.table(self.table_name)
             .select("*")
+            .gte("prediction_date", LEARNING_EPOCH_START.isoformat())
             .order("target_date", desc=True)
             .order("probability_above_5", desc=True)
             .limit(safe_limit)

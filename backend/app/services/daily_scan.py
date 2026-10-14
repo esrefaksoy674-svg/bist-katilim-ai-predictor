@@ -10,7 +10,8 @@ from app.services.prediction_evaluation import evaluate_predictions_for_target_d
 from app.services.daily_prediction import run_daily_prediction
 from app.services.learning_control import learning_control
 from app.services.learning_runner import run_daily_learning
-from app.services.prediction_history import build_prediction_history
+import pandas as pd
+from app.services.learning_epoch import LEARNING_EPOCH_START, LEARNING_EPOCH_VERSION
 from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.runtime_model import load_active_model
 from app.services.trading_calendar import next_trading_day
@@ -73,12 +74,16 @@ def run_daily_scan(
             context_status = {"status": "unavailable", "error": type(exc).__name__}
 
     registry, _artifact = load_active_model()
-    history_scan_status = {}
-    history = build_prediction_history(
-        symbols=symbols,
-        prediction_date=trading_date,
-        scan_status=history_scan_status,
-    )
+    # Cold start: retain market candles for technical indicators, but do not
+    # feed pre-epoch labeled examples into similarity/pattern scoring.
+    history_scan_status = {
+        "status": "COLD_START_NO_OLD_PATTERNS",
+        "learning_epoch_start": LEARNING_EPOCH_START.isoformat(),
+        "model_version": LEARNING_EPOCH_VERSION,
+        "old_labeled_examples_used": 0,
+        "raw_market_history_preserved": True,
+    }
+    history = pd.DataFrame()
     prediction_result = run_daily_prediction(
         prediction_date=trading_date,
         target_date=target_date,

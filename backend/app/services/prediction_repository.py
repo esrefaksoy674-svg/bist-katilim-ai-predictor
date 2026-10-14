@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import Any
 
 from app.models.prediction import Prediction
+from app.services.learning_epoch import LEARNING_EPOCH_START
 
 
 class PredictionRepository:
@@ -164,4 +165,8 @@ class SupabasePredictionRepository(PredictionRepository):
             .limit(safe_limit)
             .execute()
         )
-        return [self._from_row(row) for row in (response.data or [])]
+        return [
+            prediction
+            for prediction in (self._from_row(row) for row in (response.data or []))
+            if prediction.prediction_date >= LEARNING_EPOCH_START
+        ]

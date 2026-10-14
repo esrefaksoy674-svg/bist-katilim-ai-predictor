@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import Any
 
 from app.models.learning_event import LearningEvent
+from app.services.learning_epoch import LEARNING_EPOCH_START
 
 
 class LearningEventRepository:
@@ -70,7 +71,10 @@ class SupabaseLearningEventRepository(LearningEventRepository):
             .order("signal_date")
             .execute()
         )
-        return [self._from_row(row) for row in (response.data or [])]
+        return [
+            event for event in (self._from_row(row) for row in (response.data or []))
+            if event.signal_date >= LEARNING_EPOCH_START
+        ]
 
     def get_before(self, target_date: date) -> list[LearningEvent]:
         response = (
@@ -80,4 +84,7 @@ class SupabaseLearningEventRepository(LearningEventRepository):
             .order("signal_date")
             .execute()
         )
-        return [self._from_row(row) for row in (response.data or [])]
+        return [
+            event for event in (self._from_row(row) for row in (response.data or []))
+            if event.signal_date >= LEARNING_EPOCH_START
+        ]

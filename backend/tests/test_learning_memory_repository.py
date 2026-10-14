@@ -65,14 +65,14 @@ class FakeClient:
 def make_event():
     return LearningEvent(
         symbol="THYAO",
-        signal_date=date(2026, 9, 28),
-        reference_date=date(2026, 9, 25),
+        signal_date=date(2026, 10, 14),
+        reference_date=date(2026, 10, 13),
         rise_percent=5.5,
         technical_features={"rsi": 60},
         news_features={"positive": 1},
         sector_features={},
         source_quality=0.9,
-        created_at=datetime(2026, 9, 28, tzinfo=timezone.utc),
+        created_at=datetime(2026, 10, 14, tzinfo=timezone.utc),
     )
 
 
@@ -85,7 +85,7 @@ def test_repository_maps_event_to_supabase_row():
     assert len(client.store.rows) == 1
     row = client.store.rows[0]
     assert row["symbol"] == "THYAO"
-    assert row["signal_date"] == "2026-09-28"
+    assert row["signal_date"] == "2026-10-14"
     assert row["rise_percent"] == 5.5
 
 
@@ -111,7 +111,7 @@ def test_repository_filters_before_target_date():
 
     repository.add(make_event())
 
-    result = repository.get_before(date(2026, 9, 29))
+    result = repository.get_before(date(2026, 10, 15))
 
     assert len(result) == 1
     assert result[0].signal_date < date(2026, 9, 29)

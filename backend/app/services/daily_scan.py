@@ -11,6 +11,7 @@ from app.services.daily_prediction import run_daily_prediction
 from app.services.learning_control import learning_control
 from app.services.learning_runner import run_daily_learning
 import pandas as pd
+from app.services.prediction_history import build_prediction_history  # retained for compatibility; cold-start does not call it
 from app.services.learning_epoch import LEARNING_EPOCH_START, LEARNING_EPOCH_VERSION
 from app.services.prediction_repository_factory import get_prediction_repository
 from app.services.runtime_model import load_active_model

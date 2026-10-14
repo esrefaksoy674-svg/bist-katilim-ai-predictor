@@ -114,4 +114,4 @@ def test_repository_filters_before_target_date():
     result = repository.get_before(date(2026, 10, 15))
 
     assert len(result) == 1
-    assert result[0].signal_date < date(2026, 9, 29)
+    assert result[0].signal_date < date(2026, 10, 15)

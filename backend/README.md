@@ -31,3 +31,15 @@ Optional settings:
 - `NEWS_FETCH_TIMEOUT_SECONDS` (default: `10`)
 - `KAP_RSS_URLS` (authorized distributor RSS feeds; empty by default)
 - `SECTOR_MAP` (optional `SYMBOL:SECTOR` pairs for context summaries)
+
+## Daily scan coverage verification
+
+The scheduled scan output includes the official Katılım universe and per-symbol coverage summaries:
+
+- `universe_count` and `universe_symbols`: the complete symbol list used for that run.
+- `history_scan`: how many symbols were attempted while building historical examples, with failed symbols listed by error type.
+- `prediction_scan`: attempted symbols, received market data, eligible candidates, missing-date data, invalid features, and per-symbol errors.
+- `coverage_verified` is true only when all symbols were attempted and the relevant data/features were usable. A run with skipped or failed symbols is marked `INCOMPLETE`, not silently treated as complete.
+
+A small final prediction list is expected because the model selects only a few candidates; it does not mean only those candidates were scanned.
+

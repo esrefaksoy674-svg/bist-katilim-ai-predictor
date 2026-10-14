@@ -161,12 +161,10 @@ def build_predictions(
                 similar["actual_change_percent"],
                 errors="coerce",
             ).dropna()
-            # expected_change is an upside estimate. Prefer positive analogous
-            # outcomes so losing historical examples cannot suppress a strong
-            # probability candidate with a negative user-facing return.
-            positive_changes = actual_changes[actual_changes > 0]
+            # Use every analogous outcome, including losses. Excluding negative
+            # examples would bias expected returns upward and hide failed patterns.
             expected_change = (
-                float(positive_changes.mean()) if not positive_changes.empty else 0.0
+                float(actual_changes.mean()) if not actual_changes.empty else 0.0
             )
             pattern_count = int(len(similar))
             positive_rate = float(

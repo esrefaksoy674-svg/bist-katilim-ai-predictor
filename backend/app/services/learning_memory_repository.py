@@ -68,7 +68,6 @@ class SupabaseLearningEventRepository(LearningEventRepository):
         response = (
             self.client.table(self.table_name)
             .select("*")
-            .gte("signal_date", LEARNING_EPOCH_START.isoformat())
             .order("signal_date")
             .execute()
         )

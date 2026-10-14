@@ -1,4 +1,4 @@
-const CACHE_NAME = "bist-katilim-v1";
+const CACHE_NAME = "bist-katilim-v2";
 const APP_SHELL = ["/dashboard", "/manifest.webmanifest", "/app-icon.svg", "/mobile.js"];
 
 self.addEventListener("install", (event) => {

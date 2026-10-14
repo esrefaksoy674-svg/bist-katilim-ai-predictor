@@ -15,6 +15,7 @@ from app.core.health import (
     get_health_status,
 )
 from app.services.learning_control import learning_control
+from app.services.learning_epoch import LEARNING_EPOCH_START, LEARNING_EPOCH_VERSION
 from app.services.learning_memory_repository import SupabaseLearningEventRepository
 from app.services.market_data import fetch_daily_data
 from app.services.news_ingestion import collect_configured_news
@@ -209,6 +210,8 @@ def performance(limit: int = 100):
         if evaluated else None
     )
     return {
+        "learning_epoch_start": LEARNING_EPOCH_START.isoformat(),
+        "learning_epoch_version": LEARNING_EPOCH_VERSION,
         "tracked_count": len(rows),
         "evaluated_count": len(evaluated),
         "pending_count": len(rows) - len(evaluated),
@@ -272,6 +275,8 @@ def learning_patterns(limit: int = Query(default=100, ge=1, le=500)):
             averages[name] = round(sum(values) / len(values), 4)
 
     return {
+        "learning_epoch_start": LEARNING_EPOCH_START.isoformat(),
+        "learning_epoch_version": LEARNING_EPOCH_VERSION,
         "sample_count": len(events),
         "threshold_percent": 5.0,
         "average_signal_return_percent": (

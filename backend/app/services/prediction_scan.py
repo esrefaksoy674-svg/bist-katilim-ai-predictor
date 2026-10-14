@@ -17,30 +17,66 @@ def build_candidate_features(
     symbols: list[str],
     prediction_date: date,
 ) -> pd.DataFrame:
-    """Prediction gününe kadar bilinen veriden aday teknik özellikleri üretir."""
+    """Build candidate features while recording every symbol outcome."""
+    unique_symbols = sorted(set(symbols))
     rows = []
+    status = {
+        "universe_count": len(unique_symbols),
+        "attempted_count": 0,
+        "data_received_count": 0,
+        "candidate_count": 0,
+        "no_date_data_count": 0,
+        "invalid_features_count": 0,
+        "error_count": 0,
+        "no_date_data_symbols": [],
+        "invalid_features_symbols": [],
+        "failed_symbols": [],
+    }
 
-    for symbol in sorted(set(symbols)):
-        data = fetch_daily_data(symbol, period="2y")
-        history = data[data.index.date <= prediction_date]
+    for symbol in unique_symbols:
+        status["attempted_count"] += 1
+        try:
+            data = fetch_daily_data(symbol, period="2y")
+            status["data_received_count"] += 1
+            history = data[data.index.date <= prediction_date]
+            if history.empty:
+                status["no_date_data_count"] += 1
+                status["no_date_data_symbols"].append(symbol)
+                continue
 
-        if history.empty:
-            continue
+            features = calculate_features(history)
+            if any(features.get(name) is None for name in FEATURE_NAMES):
+                status["invalid_features_count"] += 1
+                status["invalid_features_symbols"].append(symbol)
+                continue
 
-        features = calculate_features(history)
-        if any(features.get(name) is None for name in FEATURE_NAMES):
-            continue
+            row = dict(features)
+            row["symbol"] = symbol.upper()
+            rows.append(row)
+        except Exception as exc:
+            status["error_count"] += 1
+            status["failed_symbols"].append({
+                "symbol": symbol,
+                "error": type(exc).__name__,
+            })
 
-        row = dict(features)
-        row["symbol"] = symbol.upper()
-        rows.append(row)
-
-    if not rows:
-        return pd.DataFrame(columns=FEATURE_NAMES + ["symbol"])
-
-    return pd.DataFrame(rows)
-
-
+    status["candidate_count"] = len(rows)
+    status["coverage_verified"] = (
+        status["attempted_count"] == status["universe_count"]
+        and status["error_count"] == 0
+        and status["no_date_data_count"] == 0
+        and status["invalid_features_count"] == 0
+    )
+    status["status"] = (
+        "COMPLETE" if status["coverage_verified"] else "INCOMPLETE"
+    )
+    result = (
+        pd.DataFrame(rows)
+        if rows
+        else pd.DataFrame(columns=FEATURE_NAMES + ["symbol"])
+    )
+    result.attrs["scan_status"] = status
+    return result
 def run_prediction_scan(
     symbols: list[str],
     prediction_date: date,
@@ -54,6 +90,7 @@ def run_prediction_scan(
     news_features_by_symbol: dict[str, dict] | None = None,
     sector_by_symbol: dict[str, str] | None = None,
     context_snapshot_status: dict | None = None,
+    scan_status: dict | None = None,
 ) -> list[Prediction]:
     """Rank known-at-close candidates by probability of a next-session +5% gain.
 
@@ -64,6 +101,19 @@ def run_prediction_scan(
     never interrupts the established prediction path.
     """
     candidates = build_candidate_features(symbols, prediction_date)
+    if scan_status is not None:
+        recorded_status = candidates.attrs.get("scan_status")
+        if recorded_status is not None:
+            scan_status.update(recorded_status)
+        else:
+            # Custom/test feature builders may not expose per-symbol telemetry.
+            scan_status.update({
+                "universe_count": len(set(symbols)),
+                "attempted_count": None,
+                "candidate_count": len(candidates),
+                "coverage_verified": False,
+                "status": "UNAVAILABLE",
+            })
 
     if context_snapshot_repository is not None:
         try:

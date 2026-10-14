@@ -73,9 +73,11 @@ def run_daily_scan(
             context_status = {"status": "unavailable", "error": type(exc).__name__}
 
     registry, _artifact = load_active_model()
+    history_scan_status = {}
     history = build_prediction_history(
         symbols=symbols,
         prediction_date=trading_date,
+        scan_status=history_scan_status,
     )
     prediction_result = run_daily_prediction(
         prediction_date=trading_date,
@@ -95,7 +97,12 @@ def run_daily_scan(
         "trading_date": trading_date.isoformat(),
         "target_date": target_date.isoformat(),
         "universe_count": len(symbols),
+        "universe_symbols": symbols,
         "learning": learning_result,
+        "history_scan": history_scan_status or {"status": "UNAVAILABLE"},
+        "prediction_scan": getattr(
+            prediction_result, "scan_status", {"status": "UNAVAILABLE"}
+        ),
         "evaluated_prediction_count": evaluated_prediction_count,
         "predictions": prediction_result,
         "news": news_result,

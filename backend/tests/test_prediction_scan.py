@@ -206,3 +206,49 @@ def test_prediction_scan_accepts_strong_probability_with_positive_expected_retur
 
     assert [prediction.symbol for prediction in predictions] == ["STRONG"]
     assert predictions[0].expected_change_percent == 4.2
+
+
+
+def test_candidate_scan_records_per_symbol_failures_without_aborting(monkeypatch):
+    index = pd.to_datetime(["2026-10-01", "2026-10-02"])
+    data = pd.DataFrame(
+        {
+            "Open": [10, 11],
+            "High": [11, 12],
+            "Low": [9, 10],
+            "Close": [10.5, 11.5],
+            "Volume": [100, 110],
+        },
+        index=index,
+    )
+
+    def fake_fetch(symbol, period="2y"):
+        if symbol == "BROKEN":
+            raise RuntimeError("provider unavailable")
+        return data
+
+    monkeypatch.setattr(prediction_scan, "fetch_daily_data", fake_fetch)
+    monkeypatch.setattr(
+        prediction_scan,
+        "calculate_features",
+        lambda history: {
+            name: 1.0 for name in prediction_scan.FEATURE_NAMES
+        },
+    )
+
+    candidates = prediction_scan.build_candidate_features(
+        ["GOOD", "BROKEN"],
+        date(2026, 10, 2),
+    )
+
+    status = candidates.attrs["scan_status"]
+    assert status["universe_count"] == 2
+    assert status["attempted_count"] == 2
+    assert status["data_received_count"] == 1
+    assert status["candidate_count"] == 1
+    assert status["error_count"] == 1
+    assert status["failed_symbols"] == [
+        {"symbol": "BROKEN", "error": "RuntimeError"}
+    ]
+    assert status["coverage_verified"] is False
+    assert status["status"] == "INCOMPLETE"

@@ -15,6 +15,7 @@ class DailyPredictionRun:
     model_version: str
     universe_count: int
     predictions: list
+    scan_status: dict
 
 
 def run_daily_prediction(
@@ -51,6 +52,7 @@ def run_daily_prediction(
     if not universe:
         raise RuntimeError("Tahmin için Katılım evreni boş.")
 
+    scan_status = {}
     predictions = run_prediction_scan(
         symbols=universe,
         prediction_date=prediction_date,
@@ -64,6 +66,7 @@ def run_daily_prediction(
         news_features_by_symbol=news_features_by_symbol,
         sector_by_symbol=sector_by_symbol,
         context_snapshot_status=context_snapshot_status,
+        scan_status=scan_status,
     )
 
     return DailyPredictionRun(
@@ -71,4 +74,5 @@ def run_daily_prediction(
         model_version=active.version,
         universe_count=len(set(universe)),
         predictions=predictions,
+        scan_status=scan_status,
     )

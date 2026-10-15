@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BIST Hisse Analiz Paneli</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#26364f;--muted:#a8b7cc;--text:#edf4ff;--accent:#65d6b3}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#0b1220,#101c2e);font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text)}main{max-width:920px;margin:auto;padding:24px 16px 50px}.brand{color:var(--accent);font-weight:800;letter-spacing:.08em;font-size:.8rem}h1{font-size:clamp(1.7rem,5vw,2.5rem);margin:.35rem 0}p{color:var(--muted);line-height:1.55}.search{display:flex;gap:10px;margin:22px 0}.search input{flex:1;min-width:0;background:#0a1424;border:1px solid var(--line);border-radius:12px;padding:15px;color:var(--text);font-size:1rem;text-transform:uppercase}.search button{border:0;border-radius:12px;background:var(--accent);color:#062018;font-weight:800;padding:0 20px;font-size:1rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:rgba(18,29,48,.92);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}.wide{grid-column:1/-1}.muted{color:var(--muted);font-size:.88rem}.big{font-size:1.9rem;font-weight:800;letter-spacing:-.04em}.positive{color:#6ee7ad}.negative{color:#ff8d9b}.decision{font-size:1.15rem;font-weight:800}.rows{display:grid;grid-template-columns:1fr auto;gap:11px;margin-top:12px}.rows span:nth-child(odd){color:var(--muted)}.rows span:nth-child(even){font-variant-numeric:tabular-nums;text-align:right}.status{padding:12px;border-radius:10px;background:#0a1424;color:var(--muted);margin:12px 0}.hidden{display:none}.fine{font-size:.8rem}.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.level{padding:12px 8px;border-radius:10px;background:#0a1424;text-align:center}.level strong{display:block;margin-top:5px;font-size:1rem}@media(max-width:560px){main{padding:18px 12px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.search button{padding:0 14px}.levels{grid-template-columns:1fr}}
+</style></head><body><main>
+<div class="brand">BIST · TEKNİK ANALİZ</div><h1>Hisse Analiz Paneli</h1><p>Bir BIST hisse kodu gir; fiyat geçmişinden RSI, MACD, hareketli ortalamalar, hacim, destek/direnç ve yaklaşık risk seviyelerini hesaplayalım.</p>
+<form class="search" id="form"><input id="ticker" placeholder="Örn. THYAO, ASELS, TUPRS" autocomplete="off" maxlength="12" required><button id="go">Analiz et</button></form>
+<div id="status" class="status">Analiz için bir hisse kodu gir.</div><section id="results" class="grid hidden">
+<div class="card"><div class="muted" id="symbol">HİSSE</div><div id="price" class="big">—</div><div id="change">—</div><div class="muted" id="date"></div></div>
+<div class="card"><div class="muted">TEKNİK ÖZET</div><div id="decision" class="decision">—</div><p id="comment"></p><div class="muted" id="score"></div></div>
+<div class="card"><strong>Göstergeler</strong><div class="rows" id="indicators"></div></div>
+<div class="card"><strong>Yaklaşık seviyeler</strong><div class="levels" id="levels"></div><p class="fine">Bunlar otomatik hesaplanan referans seviyeleridir; kişisel risk toleransına göre uyarlanmaz.</p></div>
+<div class="card wide"><strong>Veri ve uyarı</strong><p id="data-note"></p><p class="fine" id="disclaimer"></p></div>
+</section>
+<p class="fine">Veri kaynağı: Yahoo Finance günlük geçmiş verisi. Fiyatlar gecikmeli olabilir; gerçek zamanlı veri garantisi yoktur. Bu araç otomatik alım-satım yapmaz ve yatırım tavsiyesi vermez.</p>
+</main><script>
+const $=id=>document.getElementById(id);
+const money=n=>n==null?'—':Number(n).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₺';
+const value=n=>n==null?'—':Number(n).toLocaleString('tr-TR',{maximumFractionDigits:3});
+$('form').addEventListener('submit',async e=>{e.preventDefault();const t=$('ticker').value.trim().toUpperCase();if(!t)return;
+$('go').disabled=true;$('go').textContent='Hesaplanıyor…';$('status').textContent=t+' için veri alınıyor…';$('results').classList.add('hidden');
+try{const r=await fetch('/api/analyze/'+encodeURIComponent(t));const d=await r.json();if(!r.ok)throw new Error(d.detail||'Analiz yapılamadı.');
+$('symbol').textContent=d.ticker;$('price').textContent=money(d.last);$('change').textContent=(d.change_pct>=0?'+':'')+value(d.change_pct)+'%';$('change').className=d.change_pct>=0?'positive':'negative';$('date').textContent='Son veri tarihi: '+d.date;
+$('decision').textContent=d.decision;$('comment').textContent=d.comment;$('score').textContent='Teknik puan: '+d.score+' / 5 (basit gösterge skoru)';
+const labels={RSI_14:'RSI (14)',MACD:'MACD',MACD_signal:'MACD sinyal',MACD_histogram:'MACD histogram',EMA20:'EMA 20',EMA50:'EMA 50',volume:'Son hacim',volume_vs_20d:'Hacim / 20g ort.',support_20d:'20 günlük destek',resistance_20d:'20 günlük direnç'};
+$('indicators').innerHTML=Object.entries(labels).map(([k,l])=>'<span>'+l+'</span><span>'+value(d.indicators[k])+'</span>').join('');
+$('levels').innerHTML=[['Referans',d.levels.reference],['Stop (örnek)',d.levels.stop_loss_illustrative],['Hedef 1 / 2',d.levels.target_1_illustrative]].map(([l,v])=>'<div class="level"><span class="muted">'+l+'</span><strong>'+money(v)+'</strong></div>').join('');
+$('data-note').textContent=d.data_note;$('disclaimer').textContent=d.disclaimer;$('results').classList.remove('hidden');$('status').textContent='Analiz tamamlandı.';
+}catch(err){$('status').textContent=err.message||'Veri alınamadı. Biraz sonra yeniden deneyin.'}
+finally{$('go').disabled=false;$('go').textContent='Analiz et'}
+});
+</script></body></html>

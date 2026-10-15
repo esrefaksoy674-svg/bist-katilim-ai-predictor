@@ -350,7 +350,7 @@ def predictions(prediction_date: date | None = None):
             row
             for row in rows
             if row.target_date == next_session
-            and row.expected_change_percent > 0
+    
             and row.probability_above_5 > 0
         ]
         rows.sort(
